@@ -411,9 +411,11 @@ export class AuthService {
 
     await prisma.session.create({
       data: {
+        session_id: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         user_id: user.user_id,
         token,
         expiresAt: getSessionExpiryDate(),
+        updated_at: new Date(),
       },
     });
 
@@ -784,11 +786,13 @@ export class AuthService {
 
       // Update password and clear reset fields (like email verification clears verification fields)
       await prisma.user.update({
-        where: { email: decoded.email },
+      await prisma.session.create({
         data: {
+          session_id: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           password_hash: hashedPassword,
           password_reset_code: null,
           password_reset_expires: null,
+          updated_at: new Date(),
         },
       });
 

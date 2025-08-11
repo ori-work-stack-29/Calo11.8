@@ -40,14 +40,14 @@ export class CronJobService {
       // Get all users who don't have today's daily goal
       const usersWithoutTodayGoal = await prisma.user.findMany({
         where: {
-          dailyGoals: {
+          DailyGoal: {
             none: {
               date: today,
             },
           },
         },
         include: {
-          questionnaires: {
+          UserQuestionnaire: {
             orderBy: { date_completed: "desc" },
             take: 1,
           },
@@ -59,7 +59,7 @@ export class CronJobService {
       );
 
       for (const user of usersWithoutTodayGoal) {
-        const questionnaire = user.questionnaires[0];
+        const questionnaire = user.UserQuestionnaire[0];
         const defaultCalories = this.calculateDailyCalories(
           questionnaire,
           user
@@ -67,6 +67,7 @@ export class CronJobService {
 
         await prisma.dailyGoal.create({
           data: {
+            id: `goal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             user_id: user.user_id,
             date: today,
             calories: defaultCalories,
@@ -77,6 +78,7 @@ export class CronJobService {
             sodium_mg: 2300,
             sugar_g: 50,
             water_ml: 2500,
+            updated_at: new Date(),
           },
         });
       }

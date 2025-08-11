@@ -163,7 +163,7 @@ export class StatisticsService {
 
       // Get calorie goal completions
       const mealDays = await prisma.meal.groupBy({
-        by: ["created_at"],
+        by: ["upload_time"],
         where: { user_id: userId },
         _sum: { calories: true },
         having: {
@@ -506,7 +506,6 @@ export class StatisticsService {
 
       const allMeals = await prisma.meal.findMany({
         where: { user_id: userId },
-        orderBy: { upload_time: "desc" },
         orderBy: { created_at: "desc" },
       });
 

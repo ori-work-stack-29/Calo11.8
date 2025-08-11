@@ -358,8 +358,8 @@ For cooking questions: give suggestions for nutritional improvement of the recip
       const user = await prisma.user.findUnique({
         where: { user_id: userId },
         include: {
-          questionnaires: true,
-          nutritionPlans: true,
+          UserQuestionnaire: true,
+          NutritionPlan: true,
         },
       });
 
@@ -368,7 +368,7 @@ For cooking questions: give suggestions for nutritional improvement of the recip
       }
 
       // Get the latest questionnaire
-      const questionnaire = user.questionnaires?.[0];
+      const questionnaire = user.UserQuestionnaire?.[0];
 
       // Create comprehensive health-based prompt
       const healthPrompt =
@@ -383,13 +383,15 @@ For cooking questions: give suggestions for nutritional improvement of the recip
 
         User Profile:
         - Daily Calorie Goal: ${
-          user.nutritionPlans?.[0]?.goal_calories || "Not set"
+          user.NutritionPlan?.[0]?.goal_calories || "Not set"
         }
         - Protein Goal: ${
-          user.nutritionPlans?.[0]?.goal_protein_g || "Not set"
+          user.NutritionPlan?.[0]?.goal_protein_g || "Not set"
         }g
         - Carbs Goal: ${user.nutritionPlans?.[0]?.goal_carbs_g || "Not set"}g
         - Fat Goal: ${user.nutritionPlans?.[0]?.goal_fats_g || "Not set"}g
+        - Carbs Goal: ${user.NutritionPlan?.[0]?.goal_carbs_g || "Not set"}g
+        - Fat Goal: ${user.NutritionPlan?.[0]?.goal_fats_g || "Not set"}g
 
         Personal Health Information:
         ${
