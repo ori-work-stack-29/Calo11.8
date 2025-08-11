@@ -37,6 +37,8 @@ import {
   Award,
   Filter,
   Search,
+  CheckCircle,
+  ArrowRight,
 } from "lucide-react-native";
 import { api, mealPlanAPI } from "@/src/services/api";
 import LoadingScreen from "@/components/LoadingScreen";
@@ -275,12 +277,10 @@ export default function RecommendedMenusScreen() {
   };
 
   const handleCreateComprehensiveMenu = async () => {
-    // Implement comprehensive menu creation logic here
     try {
       setIsGenerating(true);
       console.log("🤖 Creating comprehensive menu...");
 
-      // Validate input
       if (!menuName.trim()) {
         Alert.alert(
           language === "he" ? "שגיאה" : "Error",
@@ -290,7 +290,6 @@ export default function RecommendedMenusScreen() {
         return;
       }
 
-      // Construct payload
       const payload = {
         name: menuName,
         days: selectedDays,
@@ -303,7 +302,6 @@ export default function RecommendedMenusScreen() {
         specialRequests: specialRequests.trim(),
       };
 
-      // Make API call
       const response = await api.post(
         "/recommended-menus/generate-comprehensive",
         payload
@@ -364,7 +362,6 @@ export default function RecommendedMenusScreen() {
 
   const checkForActivePlan = async () => {
     try {
-      // Check via API call to get current meal plan
       const response = await api.get("/meal-plans/current");
       if (response.data.success && response.data.hasActivePlan) {
         const planData = {
@@ -388,16 +385,11 @@ export default function RecommendedMenusScreen() {
     }
   };
 
-  useEffect(() => {
-    checkForActivePlan();
-  }, []);
-
   const handleStartMenu = async (menuId: string) => {
     try {
       console.log("🚀 Starting menu:", menuId);
       setSelectedMenuToStart(menuId);
 
-      // Check if user has an active plan
       if (currentActivePlan) {
         setShowFeedbackModal(true);
       } else {
@@ -413,6 +405,13 @@ export default function RecommendedMenusScreen() {
     }
   };
 
+  // Check if this menu is the current active one
+  const isCurrentActiveMenu = (menuId: string) => {
+    return (
+      activePlanData?.plan_id === menuId || user?.active_menu_id === menuId
+    );
+  };
+
   const activateMenuPlan = async (
     menuId: string,
     previousPlanFeedback?: any
@@ -420,7 +419,6 @@ export default function RecommendedMenusScreen() {
     try {
       console.log("🚀 Starting menu:", menuId);
 
-      // Submit feedback for previous plan if provided
       if (previousPlanFeedback && currentActivePlan) {
         try {
           await mealPlanAPI.completePlan(
@@ -433,11 +431,9 @@ export default function RecommendedMenusScreen() {
             "⚠️ Failed to submit previous plan feedback:",
             feedbackError
           );
-          // Continue with activation even if feedback submission fails
         }
       }
 
-      // Create and activate the new plan from the recommended menu
       const response = await api.post(
         `/recommended-menus/${menuId}/start-today`
       );
@@ -445,6 +441,7 @@ export default function RecommendedMenusScreen() {
       if (response.data.success && response.data.data) {
         const newPlan = response.data.data;
         setCurrentActivePlan(newPlan);
+        setHasActivePlan(true);
         setShowFeedbackModal(false);
         setSelectedMenuToStart(null);
 
@@ -457,6 +454,10 @@ export default function RecommendedMenusScreen() {
             {
               text: language === "he" ? "אישור" : "OK",
               onPress: () => {
+                console.log(
+                  "Navigating to active menu with plan ID:",
+                  newPlan.plan_id
+                );
                 router.push(`/menu/activeMenu?planId=${newPlan.plan_id}`);
               },
             },
@@ -497,7 +498,6 @@ export default function RecommendedMenusScreen() {
 
   const filteredMenus = useMemo(() => {
     return menus.filter((menu) => {
-      // Search filter
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         const matchesSearch =
@@ -507,7 +507,6 @@ export default function RecommendedMenusScreen() {
         if (!matchesSearch) return false;
       }
 
-      // Category filter
       if (selectedFilter !== "all") {
         if (selectedFilter === "recent" && menu.created_at) {
           const menuDate = new Date(menu.created_at);
@@ -556,21 +555,34 @@ export default function RecommendedMenusScreen() {
           },
         ]}
       >
-        {/* Header */}
+        {/* Enhanced Header with Gradient */}
         <LinearGradient
-          colors={isDark ? ["#047857", "#059669"] : ["#10b981", "#059669"]}
+          colors={
+            isDark
+              ? ["#059669", "#047857", "#065f46"]
+              : ["#10b981", "#059669", "#047857"]
+          }
           style={styles.cardHeader}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
         >
           <View style={[styles.headerContent, isRTL && styles.rtlRow]}>
             <View style={styles.headerLeft}>
-              <ChefHat size={24} color="#ffffff" />
+              <View style={styles.iconContainer}>
+                <ChefHat size={28} color="#ffffff" />
+              </View>
               <View style={styles.headerText}>
                 <Text style={[styles.menuTitle, isRTL && styles.rtlText]}>
                   {menu.title}
                 </Text>
                 <Text style={[styles.menuDate, isRTL && styles.rtlText]}>
                   {new Date(menu.created_at).toLocaleDateString(
-                    language === "he" ? "he-IL" : "en-US"
+                    language === "he" ? "he-IL" : "en-US",
+                    {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    }
                   )}
                 </Text>
               </View>
@@ -584,22 +596,26 @@ export default function RecommendedMenusScreen() {
           </View>
         </LinearGradient>
 
-        {/* Content */}
+        {/* Enhanced Content */}
         <View style={styles.cardContent}>
-          {/* Description */}
+          {/* Description with better typography */}
           {menu.description && (
-            <Text
-              style={[
-                styles.description,
-                { color: colors.text },
-                isRTL && styles.rtlText,
-              ]}
-            >
-              {menu.description}
-            </Text>
+            <View style={styles.descriptionContainer}>
+              <Text
+                style={[
+                  styles.description,
+                  { color: colors.text },
+                  isRTL && styles.rtlText,
+                ]}
+                numberOfLines={2}
+                ellipsizeMode="tail"
+              >
+                {menu.description}
+              </Text>
+            </View>
           )}
 
-          {/* Nutrition Summary */}
+          {/* Enhanced Nutrition Grid */}
           <View style={styles.nutritionSection}>
             <Text
               style={[
@@ -620,7 +636,9 @@ export default function RecommendedMenusScreen() {
                   { backgroundColor: colors.surface },
                 ]}
               >
-                <Target size={20} color="#ef4444" />
+                <View style={styles.nutritionIcon}>
+                  <Target size={18} color="#ef4444" />
+                </View>
                 <Text style={[styles.nutritionValue, { color: colors.text }]}>
                   {avgCaloriesPerDay}
                 </Text>
@@ -635,7 +653,9 @@ export default function RecommendedMenusScreen() {
                   { backgroundColor: colors.surface },
                 ]}
               >
-                <TrendingUp size={20} color="#3b82f6" />
+                <View style={styles.nutritionIcon}>
+                  <TrendingUp size={18} color="#3b82f6" />
+                </View>
                 <Text style={[styles.nutritionValue, { color: colors.text }]}>
                   {avgProteinPerDay}g
                 </Text>
@@ -650,7 +670,9 @@ export default function RecommendedMenusScreen() {
                   { backgroundColor: colors.surface },
                 ]}
               >
-                <Award size={20} color="#10b981" />
+                <View style={styles.nutritionIcon}>
+                  <Award size={18} color="#10b981" />
+                </View>
                 <Text style={[styles.nutritionValue, { color: colors.text }]}>
                   {menu.meals.length}
                 </Text>
@@ -661,17 +683,30 @@ export default function RecommendedMenusScreen() {
             </View>
           </View>
 
-          {/* Meal Preview */}
+          {/* Enhanced Meals Preview */}
           <View style={styles.mealsPreview}>
-            <Text
-              style={[
-                styles.sectionTitle,
-                { color: colors.text },
-                isRTL && styles.rtlText,
-              ]}
-            >
-              {language === "he" ? "ארוחות לדוגמה" : "Sample Meals"}
-            </Text>
+            <View style={styles.previewHeader}>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  { color: colors.text },
+                  isRTL && styles.rtlText,
+                ]}
+              >
+                {language === "he" ? "ארוחות לדוגמה" : "Sample Meals"}
+              </Text>
+              <TouchableOpacity
+                onPress={() => router.push(`/menu/${menu.menu_id}`)}
+                style={styles.viewAllButton}
+              >
+                <Text
+                  style={[styles.viewAllText, { color: colors.emerald500 }]}
+                >
+                  {language === "he" ? "צפה בהכל" : "View All"}
+                </Text>
+                <ArrowRight size={12} color={colors.emerald500} />
+              </TouchableOpacity>
+            </View>
 
             <ScrollView
               horizontal
@@ -689,31 +724,48 @@ export default function RecommendedMenusScreen() {
                     },
                   ]}
                 >
-                  <Utensils size={16} color={colors.emerald500} />
+                  <View style={styles.mealPreviewHeader}>
+                    <Utensils size={14} color={colors.emerald500} />
+                    <Text
+                      style={[
+                        styles.mealTypeText,
+                        { color: colors.emerald500 },
+                      ]}
+                    >
+                      {meal.meal_type}
+                    </Text>
+                  </View>
                   <Text
                     style={[styles.mealPreviewName, { color: colors.text }]}
                     numberOfLines={2}
                   >
                     {meal.name}
                   </Text>
-                  <Text
-                    style={[
-                      styles.mealPreviewCalories,
-                      { color: colors.emerald500 },
-                    ]}
-                  >
-                    {meal.calories} {language === "he" ? "קלוריות" : "cal"}
-                  </Text>
+                  <View style={styles.mealPreviewStats}>
+                    <Text
+                      style={[
+                        styles.mealPreviewCalories,
+                        { color: colors.text },
+                      ]}
+                    >
+                      {meal.calories}
+                    </Text>
+                    <Text
+                      style={[styles.mealPreviewLabel, { color: colors.icon }]}
+                    >
+                      {language === "he" ? "קל" : "cal"}
+                    </Text>
+                  </View>
                 </View>
               ))}
             </ScrollView>
           </View>
 
-          {/* Cost and Time Info */}
+          {/* Enhanced Info Row */}
           <View style={styles.infoRow}>
             {menu.estimated_cost && (
               <View style={[styles.infoItem, isRTL && styles.rtlRow]}>
-                <DollarSign size={16} color={colors.icon} />
+                <DollarSign size={16} color={colors.emerald500} />
                 <Text style={[styles.infoText, { color: colors.text }]}>
                   ₪{menu.estimated_cost.toFixed(0)}
                 </Text>
@@ -722,7 +774,7 @@ export default function RecommendedMenusScreen() {
 
             {menu.prep_time_minutes && (
               <View style={[styles.infoItem, isRTL && styles.rtlRow]}>
-                <Clock size={16} color={colors.icon} />
+                <Clock size={16} color={colors.emerald500} />
                 <Text style={[styles.infoText, { color: colors.text }]}>
                   {menu.prep_time_minutes} {language === "he" ? "דק'" : "min"}
                 </Text>
@@ -730,19 +782,22 @@ export default function RecommendedMenusScreen() {
             )}
 
             <View style={[styles.infoItem, isRTL && styles.rtlRow]}>
-              <Star size={16} color="#fbbf24" />
+              <Star size={16} color="#fbbf24" fill="#fbbf24" />
               <Text style={[styles.infoText, { color: colors.text }]}>
                 {menu.difficulty_level}/5
               </Text>
             </View>
           </View>
 
-          {/* Action Buttons */}
+          {/* Enhanced Action Buttons */}
           <View style={[styles.actionButtons, isRTL && styles.rtlRow]}>
             <TouchableOpacity
               style={[
                 styles.secondaryButton,
-                { borderColor: colors.emerald500 },
+                {
+                  borderColor: colors.emerald500,
+                  backgroundColor: colors.surface,
+                },
               ]}
               onPress={() => router.push(`/menu/${menu.menu_id}`)}
             >
@@ -760,13 +815,31 @@ export default function RecommendedMenusScreen() {
             <TouchableOpacity
               style={[
                 styles.primaryButton,
-                { backgroundColor: colors.emerald500 },
+                {
+                  backgroundColor: isCurrentActiveMenu(menu.menu_id)
+                    ? colors.success
+                    : colors.emerald500,
+                },
               ]}
-              onPress={() => handleStartMenu(menu.menu_id)}
+              onPress={() => {
+                if (isCurrentActiveMenu(menu.menu_id)) {
+                  router.push(`/menu/activeMenu?planId=${menu.menu_id}`);
+                } else {
+                  handleStartMenu(menu.menu_id);
+                }
+              }}
             >
-              <Play size={16} color="#ffffff" />
+              {isCurrentActiveMenu(menu.menu_id) ? (
+                <CheckCircle size={16} color="#ffffff" />
+              ) : (
+                <Play size={16} color="#ffffff" />
+              )}
               <Text style={styles.primaryButtonText}>
-                {hasActivePlan
+                {isCurrentActiveMenu(menu.menu_id)
+                  ? language === "he"
+                    ? "המשך"
+                    : "Continue"
+                  : hasActivePlan
                   ? language === "he"
                     ? "החלף"
                     : "Switch"
@@ -970,7 +1043,6 @@ export default function RecommendedMenusScreen() {
                 : "How was your plan?"}
             </Text>
 
-            {/* Rating */}
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>
                 {language === "he" ? "דירוג כללי" : "Overall Rating"} *
@@ -998,7 +1070,6 @@ export default function RecommendedMenusScreen() {
               </View>
             </View>
 
-            {/* What you liked */}
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>
                 {language === "he" ? "מה אהבת?" : "What did you like?"}
@@ -1028,7 +1099,6 @@ export default function RecommendedMenusScreen() {
               />
             </View>
 
-            {/* What you didn't like */}
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>
                 {language === "he" ? "מה לא אהבת?" : "What didn't you like?"}
@@ -1058,7 +1128,6 @@ export default function RecommendedMenusScreen() {
               />
             </View>
 
-            {/* Suggestions */}
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>
                 {language === "he"
@@ -1160,7 +1229,6 @@ export default function RecommendedMenusScreen() {
             style={styles.modalBody}
             showsVerticalScrollIndicator={false}
           >
-            {/* Menu Name */}
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>
                 {language === "he" ? "שם התפריט" : "Menu Name"} *
@@ -1181,7 +1249,6 @@ export default function RecommendedMenusScreen() {
               />
             </View>
 
-            {/* Duration and Meals */}
             <View style={styles.inputRow}>
               <View
                 style={[
@@ -1261,7 +1328,6 @@ export default function RecommendedMenusScreen() {
               </View>
             </View>
 
-            {/* Nutrition Goals */}
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
               {language === "he"
                 ? "יעדים תזונתיים יומיים"
@@ -1373,7 +1439,6 @@ export default function RecommendedMenusScreen() {
               </View>
             </View>
 
-            {/* Budget */}
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>
                 {language === "he" ? "תקציב יומי (₪)" : "Daily Budget (₪)"}
@@ -1395,7 +1460,6 @@ export default function RecommendedMenusScreen() {
               />
             </View>
 
-            {/* Special Requests */}
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>
                 {language === "he" ? "בקשות מיוחדות" : "Special Requests"}
@@ -1479,10 +1543,10 @@ export default function RecommendedMenusScreen() {
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      {/* Header */}
+      {/* Enhanced Header */}
       <View style={[styles.header, { backgroundColor: colors.background }]}>
         <View style={styles.headerTop}>
-          <View>
+          <View style={styles.titleContainer}>
             <Text
               style={[
                 styles.title,
@@ -1501,15 +1565,32 @@ export default function RecommendedMenusScreen() {
             >
               {language === "he"
                 ? "תפריטים מותאמים אישית עבורך"
-                : "Personalized menus created for you"}
+                : "AI-powered personalized menus"}
             </Text>
           </View>
 
-          {/* Continue or Create Button */}
-          {hasActivePlan ? (
+          <TouchableOpacity
+            style={[
+              styles.generateButton,
+              { backgroundColor: colors.emerald500 },
+            ]}
+            onPress={() => setShowComprehensiveModal(true)}
+            disabled={isGenerating}
+          >
+            {isGenerating ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <Plus size={20} color="#ffffff" />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Centered Continue Button */}
+        {hasActivePlan && (
+          <View style={styles.continueButtonContainer}>
             <TouchableOpacity
               style={[
-                styles.continueButton,
+                styles.centeredContinueButton,
                 { backgroundColor: colors.emerald500 },
               ]}
               onPress={() =>
@@ -1518,30 +1599,18 @@ export default function RecommendedMenusScreen() {
                 )
               }
             >
-              <Play size={16} color="#ffffff" />
-              <Text style={styles.continueButtonText}>
-                {language === "he" ? "המשך" : "Continue"}
+              <CheckCircle size={20} color="#ffffff" />
+              <Text style={styles.centeredContinueButtonText}>
+                {language === "he"
+                  ? "המשך התוכנית הפעילה"
+                  : "Continue Active Plan"}
               </Text>
+              <ArrowRight size={16} color="#ffffff" />
             </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[
-                styles.generateButton,
-                { backgroundColor: colors.emerald500 },
-              ]}
-              onPress={() => setShowComprehensiveModal(true)}
-              disabled={isGenerating}
-            >
-              {isGenerating ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Plus size={20} color="#ffffff" />
-              )}
-            </TouchableOpacity>
-          )}
-        </View>
+          </View>
+        )}
 
-        {/* Search and Filter */}
+        {/* Enhanced Search and Filter */}
         <View style={styles.searchSection}>
           <View
             style={[
@@ -1560,6 +1629,11 @@ export default function RecommendedMenusScreen() {
               onChangeText={setSearchQuery}
               textAlign={isRTL ? "right" : "left"}
             />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <X size={16} color={colors.icon} />
+              </TouchableOpacity>
+            )}
           </View>
 
           <ScrollView
@@ -1583,9 +1657,12 @@ export default function RecommendedMenusScreen() {
                 key={filter.key}
                 style={[
                   styles.filterChip,
-                  { borderColor: colors.border },
-                  selectedFilter === filter.key && {
-                    backgroundColor: colors.emerald500,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor:
+                      selectedFilter === filter.key
+                        ? colors.emerald500
+                        : colors.surface,
                   },
                 ]}
                 onPress={() => setSelectedFilter(filter.key)}
@@ -1623,7 +1700,7 @@ export default function RecommendedMenusScreen() {
       >
         {filteredMenus.length > 0 ? (
           <>
-            {/* Stats Overview */}
+            {/* Enhanced Stats Overview */}
             <View
               style={[
                 styles.statsCard,
@@ -1632,16 +1709,20 @@ export default function RecommendedMenusScreen() {
             >
               <LinearGradient
                 colors={
-                  isDark ? ["#047857", "#059669"] : ["#ecfdf5", "#d1fae5"]
+                  isDark
+                    ? ["#064e3b", "#047857", "#059669"]
+                    : ["#ecfdf5", "#d1fae5", "#a7f3d0"]
                 }
                 style={styles.statsGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
               >
                 <View style={styles.statsHeader}>
-                  <Sparkles size={20} color={colors.emerald500} />
+                  <Sparkles size={24} color={colors.emerald500} />
                   <Text
                     style={[styles.statsTitle, { color: colors.emerald700 }]}
                   >
-                    {language === "he" ? "הסטטיסטיקות שלך" : "Your Stats"}
+                    {language === "he" ? "הסטטיסטיקות שלך" : "Your Menu Stats"}
                   </Text>
                 </View>
 
@@ -1701,14 +1782,14 @@ export default function RecommendedMenusScreen() {
           </>
         ) : (
           <View style={styles.emptyState}>
-            <ChefHat size={64} color={colors.icon} />
+            <ChefHat size={80} color={colors.icon} />
             <Text style={[styles.emptyTitle, { color: colors.text }]}>
               {language === "he" ? "אין תפריטים זמינים" : "No menus available"}
             </Text>
             <Text style={[styles.emptyText, { color: colors.icon }]}>
               {language === "he"
                 ? "צור תפריט מותאם אישית כדי להתחיל"
-                : "Create a custom menu to get started"}
+                : "Create a personalized menu to get started"}
             </Text>
 
             <TouchableOpacity
@@ -1727,7 +1808,7 @@ export default function RecommendedMenusScreen() {
         )}
       </ScrollView>
 
-      {/* Floating Action Button */}
+      {/* Enhanced Floating Action Button */}
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: colors.emerald500 }]}
         onPress={handleGenerateMenu}
@@ -1753,25 +1834,53 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e5e5",
+    paddingTop: 16,
+    paddingBottom: 20,
   },
   headerTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
+    marginBottom: 16,
+  },
+  titleContainer: {
+    flex: 1,
+  },
+  continueButtonContainer: {
+    alignItems: "center",
     marginBottom: 20,
   },
+  centeredContinueButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 28,
+    gap: 12,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    minWidth: 280,
+    justifyContent: "center",
+  },
+  centeredContinueButtonText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#ffffff",
+    textAlign: "center",
+  },
   title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    marginBottom: 4,
+    fontSize: 32,
+    fontWeight: "800",
+    marginBottom: 6,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
-    opacity: 0.7,
+    opacity: 0.8,
+    fontWeight: "500",
   },
   rtlText: {
     textAlign: "right",
@@ -1780,91 +1889,102 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse",
   },
   generateButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 4,
+    elevation: 6,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
   continueButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 24,
-    gap: 8,
-    elevation: 4,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 26,
+    gap: 10,
+    elevation: 6,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
   continueButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 16,
+    fontWeight: "700",
     color: "#ffffff",
   },
   searchSection: {
-    gap: 15,
+    gap: 16,
   },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    gap: 10,
+    gap: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
     padding: 0,
+    fontWeight: "500",
   },
   filtersContainer: {
     paddingHorizontal: 0,
-    gap: 10,
+    gap: 12,
   },
   filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginRight: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    marginRight: 10,
   },
   filterChipText: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   content: {
     flex: 1,
   },
   contentContainer: {
     padding: 20,
-    gap: 20,
+    gap: 24,
   },
   statsCard: {
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     overflow: "hidden",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
   },
   statsGradient: {
-    padding: 20,
+    padding: 24,
   },
   statsHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 16,
+    gap: 12,
+    marginBottom: 20,
   },
   statsTitle: {
-    fontSize: 18,
-    fontWeight: "600",
+    fontSize: 20,
+    fontWeight: "700",
   },
   statsGrid: {
     flexDirection: "row",
@@ -1872,28 +1992,31 @@ const styles = StyleSheet.create({
   },
   statItem: {
     alignItems: "center",
+    gap: 8,
   },
   statValue: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 4,
+    fontSize: 28,
+    fontWeight: "800",
   },
   statLabel: {
-    fontSize: 12,
-    fontWeight: "500",
+    fontSize: 13,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   menuCard: {
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     overflow: "hidden",
-    elevation: 3,
+    elevation: 6,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    marginBottom: 20,
   },
   cardHeader: {
-    padding: 20,
+    padding: 24,
   },
   headerContent: {
     flexDirection: "row",
@@ -1903,55 +2026,72 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 16,
     flex: 1,
+  },
+  iconContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerText: {
     flex: 1,
   },
   menuTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 22,
+    fontWeight: "800",
     color: "#ffffff",
-    marginBottom: 4,
+    marginBottom: 6,
+    letterSpacing: -0.3,
   },
   menuDate: {
     fontSize: 14,
     color: "#ffffff",
-    opacity: 0.8,
+    opacity: 0.9,
+    fontWeight: "500",
   },
   daysContainer: {
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
   },
   daysNumber: {
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 24,
+    fontWeight: "800",
     color: "#ffffff",
   },
   daysLabel: {
     fontSize: 12,
     color: "#ffffff",
-    opacity: 0.8,
+    opacity: 0.9,
+    fontWeight: "600",
+    textTransform: "uppercase",
   },
   cardContent: {
-    padding: 20,
-    gap: 20,
+    padding: 24,
+    gap: 24,
+  },
+  descriptionContainer: {
+    marginBottom: 4,
   },
   description: {
     fontSize: 16,
     lineHeight: 24,
     opacity: 0.8,
+    fontWeight: "500",
   },
   nutritionSection: {
-    gap: 12,
+    gap: 16,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: "700",
+    letterSpacing: -0.2,
   },
   nutritionGrid: {
     flexDirection: "row",
@@ -1959,266 +2099,340 @@ const styles = StyleSheet.create({
   },
   nutritionCard: {
     flex: 1,
-    padding: 16,
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: 16,
     alignItems: "center",
-    gap: 8,
+    gap: 10,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  nutritionIcon: {
+    marginBottom: 4,
   },
   nutritionValue: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 20,
+    fontWeight: "800",
   },
   nutritionLabel: {
     fontSize: 12,
-    fontWeight: "500",
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   mealsPreview: {
-    gap: 12,
+    gap: 16,
+  },
+  previewHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  viewAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  viewAllText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
   mealsScrollContainer: {
     paddingRight: 20,
-    gap: 12,
+    gap: 16,
   },
   mealPreviewCard: {
-    width: 120,
-    padding: 12,
-    borderRadius: 10,
+    width: 140,
+    padding: 16,
+    borderRadius: 16,
     borderWidth: 1,
+    gap: 10,
+    marginRight: 16,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  mealPreviewHeader: {
+    flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginRight: 12,
+  },
+  mealTypeText: {
+    fontSize: 10,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   mealPreviewName: {
-    fontSize: 12,
-    fontWeight: "500",
+    fontSize: 14,
+    fontWeight: "600",
     textAlign: "center",
-    lineHeight: 16,
+    lineHeight: 18,
+    flex: 1,
+  },
+  mealPreviewStats: {
+    alignItems: "center",
+    gap: 2,
   },
   mealPreviewCalories: {
-    fontSize: 11,
-    fontWeight: "600",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  mealPreviewLabel: {
+    fontSize: 10,
+    fontWeight: "500",
+    textTransform: "uppercase",
   },
   infoRow: {
     flexDirection: "row",
     justifyContent: "space-around",
-    paddingVertical: 12,
+    paddingVertical: 16,
+    backgroundColor: "rgba(16, 185, 129, 0.05)",
+    borderRadius: 16,
   },
   infoItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
   },
   infoText: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   actionButtons: {
     flexDirection: "row",
-    gap: 12,
+    gap: 16,
   },
   secondaryButton: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 16,
+    borderRadius: 16,
     borderWidth: 2,
-    gap: 8,
+    gap: 10,
   },
   secondaryButtonText: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   primaryButton: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 16,
+    gap: 10,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
   primaryButtonText: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#ffffff",
   },
   emptyState: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 60,
-    gap: 20,
+    paddingVertical: 80,
+    gap: 24,
   },
   emptyTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
+    fontSize: 28,
+    fontWeight: "800",
+    textAlign: "center",
+    letterSpacing: -0.5,
   },
   emptyText: {
     fontSize: 16,
     textAlign: "center",
-    opacity: 0.7,
+    opacity: 0.8,
+    lineHeight: 24,
+    maxWidth: 280,
   },
   createFirstButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
+    paddingHorizontal: 32,
+    paddingVertical: 18,
+    borderRadius: 16,
+    gap: 12,
     marginTop: 20,
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
   createFirstButtonText: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#ffffff",
   },
   fab: {
     position: "absolute",
     bottom: 30,
     right: 30,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 8,
+    elevation: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
   modalContent: {
     width: "100%",
-    maxHeight: "80%",
-    borderRadius: 20,
+    maxHeight: "85%",
+    borderRadius: 24,
     overflow: "hidden",
-    elevation: 10,
+    elevation: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
   },
   comprehensiveModalContainer: {
     width: "100%",
-    maxHeight: "85%",
-    borderRadius: 20,
+    maxHeight: "90%",
+    borderRadius: 24,
     overflow: "hidden",
-    elevation: 10,
+    elevation: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 20,
+    padding: 24,
     borderBottomWidth: 1,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.3,
   },
   modalBody: {
-    padding: 20,
-    maxHeight: 400,
+    padding: 24,
+    maxHeight: 500,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   inputLabel: {
     fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 8,
+    fontWeight: "700",
+    marginBottom: 10,
+    letterSpacing: -0.2,
   },
   textInput: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    borderWidth: 1.5,
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     fontSize: 16,
-    minHeight: 50,
+    minHeight: 56,
+    fontWeight: "500",
   },
   textArea: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    borderWidth: 1.5,
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     fontSize: 16,
-    minHeight: 100,
+    minHeight: 120,
     textAlignVertical: "top",
+    fontWeight: "500",
   },
   inputRow: {
     flexDirection: "row",
-    gap: 12,
-    marginBottom: 20,
+    gap: 16,
+    marginBottom: 24,
   },
   daysSelector: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 10,
   },
   dayOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    minWidth: 44,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    minWidth: 50,
     alignItems: "center",
   },
   dayOptionText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   modalActions: {
     flexDirection: "row",
-    padding: 20,
-    gap: 12,
+    padding: 24,
+    gap: 16,
     borderTopWidth: 1,
   },
   modalCancelButton: {
     flex: 1,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 18,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
+    borderWidth: 1.5,
   },
   modalCancelText: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   modalCreateButton: {
-    flex: 1,
+    flex: 2,
     flexDirection: "row",
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 18,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: 10,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
   modalCreateText: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#ffffff",
   },
   ratingContainer: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 8,
-    marginVertical: 16,
+    gap: 12,
+    marginVertical: 20,
   },
   starButton: {
-    padding: 4,
+    padding: 6,
   },
 });

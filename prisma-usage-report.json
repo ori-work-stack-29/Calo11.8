@@ -1,0 +1,69 @@
+{
+  "timestamp": "2025-08-11T09:53:45.692Z",
+  "summary": {
+    "totalModels": 26,
+    "usedModels": 25,
+    "unusedModels": 1,
+    "usageRate": "96.2%"
+  },
+  "models": {
+    "all": [
+      "Achievement",
+      "Badge",
+      "CalendarEvent",
+      "ChatMessage",
+      "ConnectedDevice",
+      "DailyActivitySummary",
+      "DailyGoal",
+      "FoodProduct",
+      "GamificationBadge",
+      "Meal",
+      "MealPlanSchedule",
+      "MealTemplate",
+      "NutritionPlan",
+      "RecommendedIngredient",
+      "RecommendedMeal",
+      "RecommendedMenu",
+      "Session",
+      "ShoppingList",
+      "SubscriptionPayment",
+      "User",
+      "UserAchievement",
+      "UserBadge",
+      "UserMealPlan",
+      "UserMealPreference",
+      "UserQuestionnaire",
+      "WaterIntake"
+    ],
+    "used": [
+      "Achievement",
+      "Badge",
+      "CalendarEvent",
+      "ChatMessage",
+      "ConnectedDevice",
+      "DailyActivitySummary",
+      "DailyGoal",
+      "FoodProduct",
+      "GamificationBadge",
+      "Meal",
+      "MealPlanSchedule",
+      "MealTemplate",
+      "NutritionPlan",
+      "RecommendedIngredient",
+      "RecommendedMeal",
+      "RecommendedMenu",
+      "Session",
+      "ShoppingList",
+      "SubscriptionPayment",
+      "User",
+      "UserAchievement",
+      "UserMealPlan",
+      "UserMealPreference",
+      "UserQuestionnaire",
+      "WaterIntake"
+    ],
+    "unused": [
+      "UserBadge"
+    ]
+  }
+}

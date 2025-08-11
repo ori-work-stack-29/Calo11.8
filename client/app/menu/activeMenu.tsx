@@ -63,6 +63,7 @@ interface MealPlan {
       [timing: string]: PlanMeal[];
     };
   };
+  days_count: number; // Added for clarity in calculations
 }
 
 interface PlanMeal {
@@ -164,15 +165,66 @@ export default function ActiveMenuScreen() {
 
   const initializeCalendar = () => {
     const today = new Date();
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(
-      today.getDay() === 0
-        ? today.getDate() - 6
-        : today.getDate() - today.getDay()
-    ); // Set to Monday if Sunday, otherwise to Monday
-    setCurrentWeekStart(startOfWeek);
-    setSelectedDay(today.getDay());
-    setSelectedDate(today);
+
+    if (!mealPlan) {
+      // If mealPlan is not loaded yet, set a default based on today
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(
+        today.getDay() === 0
+          ? today.getDate() - 6
+          : today.getDate() - today.getDay() + 1
+      ); // Start from Monday
+      setCurrentWeekStart(startOfWeek);
+      setSelectedDay(today.getDay() === 0 ? 6 : today.getDay() - 1); // Convert to 0-6 where Monday = 0
+      setSelectedDate(today);
+      return;
+    }
+
+    // If we have a meal plan with a start date, use that as reference
+    if (mealPlan?.start_date) {
+      const planStartDate = new Date(mealPlan.start_date);
+      const daysSinceStart = Math.max(
+        0,
+        Math.floor(
+          (today.getTime() - planStartDate.getTime()) / (1000 * 60 * 60 * 24)
+        )
+      );
+
+      // Calculate which week we're in relative to plan start
+      const weeksCompleted = Math.floor(daysSinceStart / 7);
+      const currentWeekStartDate = new Date(planStartDate);
+      currentWeekStartDate.setDate(
+        planStartDate.getDate() + weeksCompleted * 7
+      );
+
+      // Set current day relative to plan start (0-6, where 0 is the plan start day)
+      const currentDayInPlan = daysSinceStart % mealPlan.days_count; // Use mealPlan.days_count
+
+      console.log("📅 Date calculation:", {
+        currentDate: today.toDateString(),
+        planStartDate: planStartDate.toDateString(),
+        daysSinceStart,
+        currentDayInPlan,
+        daysCount: mealPlan.days_count,
+      });
+
+      setCurrentWeekStart(currentWeekStartDate);
+      setSelectedDay(currentDayInPlan);
+      setSelectedDate(
+        new Date(planStartDate.getTime() + daysSinceStart * 24 * 60 * 60 * 1000)
+      );
+    } else {
+      // Fallback to regular week calculation if start_date is missing (should not happen ideally)
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(
+        today.getDay() === 0
+          ? today.getDate() - 6
+          : today.getDate() - today.getDay() + 1
+      ); // Start from Monday
+      setCurrentWeekStart(startOfWeek);
+      setSelectedDay(today.getDay() === 0 ? 6 : today.getDay() - 1); // Convert to 0-6 where Monday = 0
+      setSelectedDate(today);
+    }
   };
 
   const generateWeekDays = () => {
@@ -201,26 +253,67 @@ export default function ActiveMenuScreen() {
         response = await api.get("/meal-plans/current");
       }
 
-      if (response.data.success && response.data.data) {
-        const plan = response.data.data;
-        console.log("✅ Meal plan loaded successfully");
-        console.log(`📊 Plan has ${Object.keys(plan).length} days`);
+      console.log("📥 Full API response:", response.data);
 
-        if (Object.keys(plan).length === 0) {
-          console.log("⚠️ Empty meal plan received");
+      if (
+        response.data.success &&
+        (response.data.data || response.data.hasActivePlan)
+      ) {
+        let planData = response.data.data;
+        let startDate = new Date();
+        let planName = "Active Plan";
+        let actualPlanId = planId;
+        let daysCount = 7; // Default to 7 days
+
+        // Handle different response structures
+        if (response.data.hasActivePlan && response.data.data) {
+          planData = response.data.data;
+          actualPlanId = response.data.planId;
+          planName = response.data.planName || "Active Plan";
+        }
+
+        // If planData is null but we have hasActivePlan, try to get it from server
+        if (!planData && response.data.hasActivePlan) {
+          console.log("🔄 Plan exists but no data, trying to fetch again...");
+          const retryResponse = await api.get(
+            `/meal-plans/${response.data.planId || actualPlanId}`
+          );
+          if (retryResponse.data.success && retryResponse.data.data) {
+            planData = retryResponse.data.data;
+          }
+        }
+
+        if (!planData || Object.keys(planData).length === 0) {
+          console.log("⚠️ Empty or missing meal plan data");
           setMealPlan(null);
           return;
         }
 
-        const dayCount = Object.keys(plan).length;
-        console.log(`📅 Meal plan covers ${dayCount} days`);
+        console.log("✅ Processing meal plan data:", Object.keys(planData));
 
-        // Handle both weekly_plan format and direct day format
-        const planData = plan.weekly_plan || plan;
+        // Determine days_count from planData, falling back to default or calculated
+        if (planData.days_count) {
+          daysCount = planData.days_count;
+        } else if (planData.rotation_frequency_days) {
+          daysCount = planData.rotation_frequency_days;
+        } else {
+          // Try to infer from weekly_plan if not explicitly provided
+          const inferredDays = Object.keys(
+            planData.weekly_plan || planData
+          ).length;
+          if (inferredDays > 0) {
+            daysCount = inferredDays;
+          }
+        }
+        console.log("📏 Determined days_count:", daysCount);
+
+        const weeklyPlan = planData.weekly_plan || planData;
         let hasMeals = false;
+        let totalDays = 0;
 
-        Object.entries(planData).forEach(([day, timings]) => {
+        Object.entries(weeklyPlan).forEach(([day, timings]) => {
           if (timings && typeof timings === "object") {
+            totalDays++;
             const timingCount = Object.keys(timings).length;
             console.log(`  📅 ${day}: ${timingCount} meal timings`);
 
@@ -239,25 +332,47 @@ export default function ActiveMenuScreen() {
           return;
         }
 
+        // Try to get the actual start date from server data
+        if (planData.start_date) {
+          startDate = new Date(planData.start_date);
+        } else if (response.data.start_date) {
+          startDate = new Date(response.data.start_date);
+        } else {
+          // If no start date found, use today as a fallback (though this might be less accurate)
+          console.warn(
+            "⚠️ No start date found for meal plan, using today as reference."
+          );
+          startDate = new Date();
+        }
+
         // Create meal plan object with proper structure
         const mealPlanData: MealPlan = {
-          plan_id: response.data.planId || planId || "unknown",
-          name: response.data.planName || "Active Plan",
-          description: "Active meal plan",
-          start_date: new Date().toISOString(),
+          plan_id: actualPlanId || "unknown",
+          name: planName,
+          description: planData.description || "Active meal plan",
+          start_date: startDate.toISOString(),
+          end_date: planData.end_date,
           is_active: true,
-          weekly_plan: planData,
+          target_calories_daily: planData.target_calories_daily,
+          target_protein_daily: planData.target_protein_daily,
+          target_carbs_daily: planData.target_carbs_daily,
+          target_fats_daily: planData.target_fats_daily,
+          weekly_plan: weeklyPlan,
+          days_count: daysCount, // Store the determined days_count
         };
 
         setMealPlan(mealPlanData);
+        // initializeCalendar will be called again after state update, which is fine
+        // Or we can call it here directly to avoid redundant call
+        initializeCalendar(); // Ensure calendar is initialized with the loaded plan
 
         // Initialize local state from existing data
         const ratings: { [key: string]: number } = {};
         const comments: { [key: string]: string } = {};
         const favorites: { [key: string]: boolean } = {};
 
-        if (planData && typeof planData === "object") {
-          Object.entries(planData).forEach(([day, timings]) => {
+        if (weeklyPlan && typeof weeklyPlan === "object") {
+          Object.entries(weeklyPlan).forEach(([day, timings]) => {
             if (timings && typeof timings === "object") {
               Object.entries(timings).forEach(([timing, meals]) => {
                 if (Array.isArray(meals)) {
@@ -280,32 +395,14 @@ export default function ActiveMenuScreen() {
         setMealFavorites(favorites);
 
         console.log("✅ Meal plan loaded and structured successfully");
+        console.log("📊 Total meals loaded:", Object.values(ratings).length);
       } else {
-        if (response.data.hasActivePlan === false) {
-          console.log("⚠️ No active meal plan found from server");
-          setMealPlan(null);
-        } else {
-          throw new Error(response.data.error || "No meal plan data found");
-        }
+        console.log("⚠️ No active meal plan found from server");
+        setMealPlan(null);
       }
     } catch (error) {
       console.error("💥 Error loading meal plan:", error);
-
-      // More user-friendly error handling
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      if (errorMessage.includes("404") || errorMessage.includes("not found")) {
-        console.log("📍 Plan not found, showing empty state");
-        setMealPlan(null);
-      } else {
-        Alert.alert(
-          language === "he" ? "שגיאה" : "Error",
-          language === "he"
-            ? "לא ניתן לטעון את התוכנית. אנא נסה שוב."
-            : "Failed to load meal plan. Please try again."
-        );
-        setMealPlan(null);
-      }
+      setMealPlan(null);
     } finally {
       setIsLoading(false);
     }
@@ -411,11 +508,7 @@ export default function ActiveMenuScreen() {
     }
   };
 
-  const handleSwapMeal = async (
-    meal: PlanMeal,
-    dayName: string,
-    timing: string
-  ) => {
+  const handleSwapMeal = (meal: PlanMeal, dayName: string, timing: string) => {
     setSelectedMeal(meal);
     setSwapError(null);
     setShowSwapModal(true);
@@ -433,15 +526,35 @@ export default function ActiveMenuScreen() {
         current_meal: swapRequest.currentMeal.name,
         preferences: swapRequest.preferences,
         day: swapRequest.dayName,
-        timing: swapRequest.currentMeal.meal_timing,
+        meal_timing: swapRequest.mealTiming,
       });
+
+      // Mapping day names to numerical index expected by API
+      const dayIndexMap = {
+        Sunday: 0,
+        Monday: 1,
+        Tuesday: 2,
+        Wednesday: 3,
+        Thursday: 4,
+        Friday: 5,
+        Saturday: 6,
+        ראשון: 0,
+        שני: 1,
+        שלישי: 2,
+        רביעי: 3,
+        חמישי: 4,
+        שישי: 5,
+        שבת: 6,
+      };
+      const apiDayIndex =
+        dayIndexMap[swapRequest.dayName as keyof typeof dayIndexMap];
 
       const response = await api.put(
         `/meal-plans/${mealPlan.plan_id}/replace`,
         {
-          day_of_week: getDayNames().indexOf(swapRequest.dayName),
-          meal_timing: swapRequest.currentMeal.meal_timing,
-          meal_order: 0,
+          day_of_week: apiDayIndex,
+          meal_timing: swapRequest.mealTiming,
+          meal_order: 0, // Assuming we are replacing the first meal in the list for that timing
           preferences: {
             ...swapRequest.preferences,
             current_meal_context: {
@@ -466,53 +579,51 @@ export default function ActiveMenuScreen() {
 
           const updated = { ...prev };
           updated.weekly_plan = { ...prev.weekly_plan };
-          updated.weekly_plan[swapRequest.dayName] = {
-            ...prev.weekly_plan[swapRequest.dayName],
-          };
-
-          if (
-            updated.weekly_plan[swapRequest.dayName][
-              swapRequest.currentMeal.meal_timing
-            ]
-          ) {
-            updated.weekly_plan[swapRequest.dayName][
-              swapRequest.currentMeal.meal_timing
-            ] = prev.weekly_plan[swapRequest.dayName][
-              swapRequest.currentMeal.meal_timing
-            ].map((m) =>
-              m.template_id === swapRequest.currentMeal.template_id
-                ? {
-                    template_id: newMeal.template_id || `new_${Date.now()}`,
-                    name: newMeal.name,
-                    description: newMeal.description || "",
-                    meal_timing: newMeal.meal_timing,
-                    dietary_category: newMeal.dietary_category || "BALANCED",
-                    prep_time_minutes: newMeal.prep_time_minutes || 30,
-                    difficulty_level: newMeal.difficulty_level || 2,
-                    calories: newMeal.calories,
-                    protein_g: newMeal.protein_g,
-                    carbs_g: newMeal.carbs_g,
-                    fats_g: newMeal.fats_g,
-                    fiber_g: newMeal.fiber_g || 0,
-                    sugar_g: newMeal.sugar_g || 0,
-                    sodium_mg: newMeal.sodium_mg || 0,
-                    ingredients: Array.isArray(newMeal.ingredients_json)
-                      ? newMeal.ingredients_json
-                      : newMeal.ingredients || [],
-                    instructions: Array.isArray(newMeal.instructions_json)
-                      ? newMeal.instructions_json
-                      : newMeal.instructions || [],
-                    allergens: Array.isArray(newMeal.allergens_json)
-                      ? newMeal.allergens_json
-                      : [],
-                    image_url: newMeal.image_url || null,
-                    user_rating: 0,
-                    user_comments: "",
-                    is_favorite: false,
-                  }
-                : m
-            );
+          if (!updated.weekly_plan[swapRequest.dayName]) {
+            updated.weekly_plan[swapRequest.dayName] = {};
           }
+          if (
+            !updated.weekly_plan[swapRequest.dayName][swapRequest.mealTiming]
+          ) {
+            updated.weekly_plan[swapRequest.dayName][swapRequest.mealTiming] =
+              [];
+          }
+
+          updated.weekly_plan[swapRequest.dayName][swapRequest.mealTiming] =
+            prev.weekly_plan[swapRequest.dayName][swapRequest.mealTiming].map(
+              (m) =>
+                m.template_id === swapRequest.currentMeal.template_id
+                  ? {
+                      template_id: newMeal.template_id || `new_${Date.now()}`,
+                      name: newMeal.name,
+                      description: newMeal.description || "",
+                      meal_timing: newMeal.meal_timing,
+                      dietary_category: newMeal.dietary_category || "BALANCED",
+                      prep_time_minutes: newMeal.prep_time_minutes || 30,
+                      difficulty_level: newMeal.difficulty_level || 2,
+                      calories: newMeal.calories,
+                      protein_g: newMeal.protein_g,
+                      carbs_g: newMeal.carbs_g,
+                      fats_g: newMeal.fats_g,
+                      fiber_g: newMeal.fiber_g || 0,
+                      sugar_g: newMeal.sugar_g || 0,
+                      sodium_mg: newMeal.sodium_mg || 0,
+                      ingredients: Array.isArray(newMeal.ingredients_json)
+                        ? newMeal.ingredients_json
+                        : newMeal.ingredients || [],
+                      instructions: Array.isArray(newMeal.instructions_json)
+                        ? newMeal.instructions_json
+                        : newMeal.instructions || [],
+                      allergens: Array.isArray(newMeal.allergens_json)
+                        ? newMeal.allergens_json
+                        : [],
+                      image_url: newMeal.image_url || null,
+                      user_rating: 0,
+                      user_comments: "",
+                      is_favorite: false,
+                    }
+                  : m
+            );
 
           return updated;
         });
@@ -607,14 +718,39 @@ export default function ActiveMenuScreen() {
   };
 
   const getDayNames = () => {
+    if (mealPlan?.start_date) {
+      // Get plan start day and create array from that day
+      const planStartDate = new Date(mealPlan.start_date);
+      const startDayIndex = planStartDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+
+      const allDays = [
+        language === "he" ? "ראשון" : "Sunday",
+        language === "he" ? "שני" : "Monday",
+        language === "he" ? "שלישי" : "Tuesday",
+        language === "he" ? "רביעי" : "Wednesday",
+        language === "he" ? "חמישי" : "Thursday",
+        language === "he" ? "שישי" : "Friday",
+        language === "he" ? "שבת" : "Saturday",
+      ];
+
+      // Reorder array to start from plan start day
+      const reorderedDays = [
+        ...allDays.slice(startDayIndex),
+        ...allDays.slice(0, startDayIndex),
+      ];
+
+      return reorderedDays;
+    }
+
+    // Default fallback
     return [
-      language === "he" ? "ראשון" : "Sunday",
       language === "he" ? "שני" : "Monday",
       language === "he" ? "שלישי" : "Tuesday",
       language === "he" ? "רביעי" : "Wednesday",
       language === "he" ? "חמישי" : "Thursday",
       language === "he" ? "שישי" : "Friday",
       language === "he" ? "שבת" : "Saturday",
+      language === "he" ? "ראשון" : "Sunday",
     ];
   };
 
@@ -1823,6 +1959,7 @@ export default function ActiveMenuScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#fdfefe",
   },
   header: {
     flexDirection: "row",
@@ -1830,6 +1967,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
+    backgroundColor: "#fdfefe",
+    borderBottomColor: "#d5e8e8",
   },
   headerBackButton: {
     width: 40,
@@ -1860,8 +1999,14 @@ const styles = StyleSheet.create({
   calendarWidget: {
     marginHorizontal: 20,
     marginVertical: 12,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: "hidden",
+    elevation: 2,
+    shadowColor: "#52c1c4",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    backgroundColor: "#ffffff",
   },
   calendarHeader: {
     flexDirection: "row",
@@ -1879,11 +2024,16 @@ const styles = StyleSheet.create({
   },
   dayCard: {
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginRight: 8,
-    borderRadius: 12,
-    minWidth: 60,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    marginRight: 12,
+    borderRadius: 14,
+    minWidth: 65,
+    elevation: 1,
+    shadowColor: "#52c1c4",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
   },
   dayName: {
     fontSize: 12,
@@ -1895,9 +2045,15 @@ const styles = StyleSheet.create({
   },
   nutritionSummary: {
     marginHorizontal: 20,
-    marginBottom: 12,
-    padding: 16,
-    borderRadius: 12,
+    marginBottom: 16,
+    padding: 20,
+    borderRadius: 16,
+    elevation: 2,
+    shadowColor: "#52c1c4",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    backgroundColor: "#ffffff",
   },
   summaryTitle: {
     fontSize: 16,
@@ -1944,15 +2100,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   mealCard: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    shadowColor: "#000",
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 0,
+    shadowColor: "#52c1c4",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    backgroundColor: "#ffffff",
   },
   mealCardHeader: {
     flexDirection: "row",
@@ -2022,10 +2179,15 @@ const styles = StyleSheet.create({
   swapButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    gap: 6,
+    elevation: 1,
+    shadowColor: "#52c1c4",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
   },
   swapButtonText: {
     fontSize: 12,

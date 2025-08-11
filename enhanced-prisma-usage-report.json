@@ -1,0 +1,966 @@
+{
+  "timestamp": "2025-08-11T10:49:16.159Z",
+  "summary": {
+    "totalModels": 26,
+    "activelyUsedModels": 24,
+    "suspiciousModels": 1,
+    "completelyUnusedModels": 1,
+    "realUsageRate": "92.3%",
+    "canLikelyBeRemoved": 2
+  },
+  "models": {
+    "all": [
+      "Achievement",
+      "Badge",
+      "CalendarEvent",
+      "ChatMessage",
+      "ConnectedDevice",
+      "DailyActivitySummary",
+      "DailyGoal",
+      "FoodProduct",
+      "GamificationBadge",
+      "Meal",
+      "MealPlanSchedule",
+      "MealTemplate",
+      "NutritionPlan",
+      "RecommendedIngredient",
+      "RecommendedMeal",
+      "RecommendedMenu",
+      "Session",
+      "ShoppingList",
+      "SubscriptionPayment",
+      "User",
+      "UserAchievement",
+      "UserBadge",
+      "UserMealPlan",
+      "UserMealPreference",
+      "UserQuestionnaire",
+      "WaterIntake"
+    ],
+    "activelyUsed": [
+      "Achievement",
+      "CalendarEvent",
+      "ChatMessage",
+      "ConnectedDevice",
+      "DailyActivitySummary",
+      "DailyGoal",
+      "FoodProduct",
+      "GamificationBadge",
+      "Meal",
+      "MealPlanSchedule",
+      "MealTemplate",
+      "NutritionPlan",
+      "RecommendedIngredient",
+      "RecommendedMeal",
+      "RecommendedMenu",
+      "Session",
+      "ShoppingList",
+      "SubscriptionPayment",
+      "User",
+      "UserAchievement",
+      "UserMealPlan",
+      "UserMealPreference",
+      "UserQuestionnaire",
+      "WaterIntake"
+    ],
+    "suspicious": [
+      "Badge"
+    ],
+    "completelyUnused": [
+      "UserBadge"
+    ]
+  },
+  "detailedUsage": {
+    "activelyUsed": {
+      "User": {
+        "filesWithRealUsage": 24,
+        "totalFilesMentioned": 33,
+        "usageFiles": [
+          {
+            "file": "src\\index.ts",
+            "usageTypes": [
+              "API_ENDPOINT",
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\routes\\achievements.ts",
+            "usageTypes": [
+              "API_ENDPOINT",
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\routes\\auth.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION",
+              "API_ENDPOINT"
+            ]
+          },
+          {
+            "file": "src\\routes\\chat.ts",
+            "usageTypes": [
+              "API_ENDPOINT"
+            ]
+          },
+          {
+            "file": "src\\routes\\dailyGoal.ts",
+            "usageTypes": [
+              "API_ENDPOINT"
+            ]
+          },
+          {
+            "file": "src\\routes\\foodScanner.ts",
+            "usageTypes": [
+              "API_ENDPOINT"
+            ]
+          },
+          {
+            "file": "src\\routes\\mealPlans.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION",
+              "API_ENDPOINT",
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\routes\\nutrition.ts",
+            "usageTypes": [
+              "API_ENDPOINT",
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\routes\\questionnaire.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION",
+              "API_ENDPOINT"
+            ]
+          },
+          {
+            "file": "src\\routes\\recommendedMenu.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION",
+              "API_ENDPOINT"
+            ]
+          },
+          {
+            "file": "src\\routes\\statistics.ts",
+            "usageTypes": [
+              "API_ENDPOINT",
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\routes\\user.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION",
+              "API_ENDPOINT"
+            ]
+          },
+          {
+            "file": "src\\services\\achievements.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION",
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\services\\auth.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\chat.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\cron.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\cronJobs.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\foodScanner.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION",
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\services\\nutrition.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\statistics.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION",
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\services\\api.ts",
+            "usageTypes": [
+              "API_ENDPOINT",
+              "API_ENDPOINT",
+              "API_ENDPOINT",
+              "CLIENT_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\deviceConnections.ts",
+            "usageTypes": [
+              "API_ENDPOINT"
+            ]
+          },
+          {
+            "file": "src\\services\\healthKit.ts",
+            "usageTypes": [
+              "API_ENDPOINT"
+            ]
+          },
+          {
+            "file": "src\\store\\authSlice.ts",
+            "usageTypes": [
+              "CLIENT_OPERATION",
+              "CLIENT_OPERATION",
+              "CLIENT_OPERATION",
+              "CLIENT_OPERATION",
+              "CLIENT_OPERATION"
+            ]
+          }
+        ]
+      },
+      "Session": {
+        "filesWithRealUsage": 1,
+        "totalFilesMentioned": 2,
+        "usageFiles": [
+          {
+            "file": "src\\services\\auth.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      },
+      "ConnectedDevice": {
+        "filesWithRealUsage": 4,
+        "totalFilesMentioned": 4,
+        "usageFiles": [
+          {
+            "file": "src\\routes\\user.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\devices.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\backgroundSync.ts",
+            "usageTypes": [
+              "CLIENT_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\deviceAPI.ts",
+            "usageTypes": [
+              "CLIENT_OPERATION",
+              "BUSINESS_LOGIC",
+              "BUSINESS_LOGIC",
+              "BUSINESS_LOGIC"
+            ]
+          }
+        ]
+      },
+      "DailyActivitySummary": {
+        "filesWithRealUsage": 3,
+        "totalFilesMentioned": 3,
+        "usageFiles": [
+          {
+            "file": "src\\routes\\user.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\calendar.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\devices.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      },
+      "UserQuestionnaire": {
+        "filesWithRealUsage": 8,
+        "totalFilesMentioned": 8,
+        "usageFiles": [
+          {
+            "file": "src\\routes\\mealPlans.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION",
+              "API_ENDPOINT"
+            ]
+          },
+          {
+            "file": "src\\routes\\questionnaire.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\routes\\user.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\chat.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\dailyGoal.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\foodScanner.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\mealPlans.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\recommendedMenu.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      },
+      "Meal": {
+        "filesWithRealUsage": 19,
+        "totalFilesMentioned": 26,
+        "usageFiles": [
+          {
+            "file": "src\\index.ts",
+            "usageTypes": [
+              "API_ENDPOINT"
+            ]
+          },
+          {
+            "file": "src\\routes\\foodScanner.ts",
+            "usageTypes": [
+              "API_ENDPOINT",
+              "API_ENDPOINT",
+              "API_ENDPOINT",
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\routes\\mealPlans.ts",
+            "usageTypes": [
+              "API_ENDPOINT",
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\routes\\nutrition.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION",
+              "API_ENDPOINT",
+              "API_ENDPOINT",
+              "API_ENDPOINT",
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\routes\\recommendedMenu.ts",
+            "usageTypes": [
+              "API_ENDPOINT",
+              "API_ENDPOINT",
+              "API_ENDPOINT",
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\routes\\user.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\achievements.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\calendar.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\chat.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\devices.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\foodScanner.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\nutrition.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION",
+              "BUSINESS_LOGIC",
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\services\\openai.ts",
+            "usageTypes": [
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\services\\recommendedMenu.ts",
+            "usageTypes": [
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\services\\statistics.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\api.ts",
+            "usageTypes": [
+              "API_ENDPOINT",
+              "API_ENDPOINT",
+              "API_ENDPOINT",
+              "CLIENT_OPERATION",
+              "CLIENT_OPERATION",
+              "CLIENT_OPERATION",
+              "CLIENT_OPERATION",
+              "CLIENT_OPERATION",
+              "BUSINESS_LOGIC",
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\services\\backgroundSync.ts",
+            "usageTypes": [
+              "CLIENT_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\store\\index.ts",
+            "usageTypes": [
+              "CLIENT_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\store\\mealSlice.ts",
+            "usageTypes": [
+              "CLIENT_OPERATION",
+              "CLIENT_OPERATION",
+              "CLIENT_OPERATION",
+              "CLIENT_OPERATION",
+              "CLIENT_OPERATION",
+              "CLIENT_OPERATION",
+              "CLIENT_OPERATION",
+              "BUSINESS_LOGIC",
+              "BUSINESS_LOGIC"
+            ]
+          }
+        ]
+      },
+      "NutritionPlan": {
+        "filesWithRealUsage": 5,
+        "totalFilesMentioned": 5,
+        "usageFiles": [
+          {
+            "file": "src\\routes\\mealPlans.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION",
+              "API_ENDPOINT"
+            ]
+          },
+          {
+            "file": "src\\routes\\user.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\chat.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\foodScanner.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\mealPlans.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      },
+      "SubscriptionPayment": {
+        "filesWithRealUsage": 1,
+        "totalFilesMentioned": 1,
+        "usageFiles": [
+          {
+            "file": "src\\routes\\user.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      },
+      "MealTemplate": {
+        "filesWithRealUsage": 2,
+        "totalFilesMentioned": 2,
+        "usageFiles": [
+          {
+            "file": "src\\routes\\recommendedMenu.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\mealPlans.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      },
+      "UserMealPlan": {
+        "filesWithRealUsage": 4,
+        "totalFilesMentioned": 4,
+        "usageFiles": [
+          {
+            "file": "src\\routes\\mealPlans.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION",
+              "API_ENDPOINT",
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\routes\\recommendedMenu.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\routes\\user.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\mealPlans.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      },
+      "MealPlanSchedule": {
+        "filesWithRealUsage": 2,
+        "totalFilesMentioned": 2,
+        "usageFiles": [
+          {
+            "file": "src\\routes\\recommendedMenu.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\mealPlans.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      },
+      "UserMealPreference": {
+        "filesWithRealUsage": 1,
+        "totalFilesMentioned": 1,
+        "usageFiles": [
+          {
+            "file": "src\\routes\\user.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      },
+      "ShoppingList": {
+        "filesWithRealUsage": 2,
+        "totalFilesMentioned": 4,
+        "usageFiles": [
+          {
+            "file": "src\\routes\\recommendedMenu.ts",
+            "usageTypes": [
+              "API_ENDPOINT",
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\routes\\user.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      },
+      "ChatMessage": {
+        "filesWithRealUsage": 2,
+        "totalFilesMentioned": 2,
+        "usageFiles": [
+          {
+            "file": "src\\routes\\chat.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\chat.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      },
+      "RecommendedMenu": {
+        "filesWithRealUsage": 3,
+        "totalFilesMentioned": 4,
+        "usageFiles": [
+          {
+            "file": "src\\routes\\mealPlans.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION",
+              "API_ENDPOINT"
+            ]
+          },
+          {
+            "file": "src\\routes\\recommendedMenu.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION",
+              "API_ENDPOINT"
+            ]
+          },
+          {
+            "file": "src\\services\\recommendedMenu.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      },
+      "RecommendedMeal": {
+        "filesWithRealUsage": 2,
+        "totalFilesMentioned": 2,
+        "usageFiles": [
+          {
+            "file": "src\\routes\\mealPlans.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\recommendedMenu.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      },
+      "RecommendedIngredient": {
+        "filesWithRealUsage": 1,
+        "totalFilesMentioned": 1,
+        "usageFiles": [
+          {
+            "file": "src\\services\\recommendedMenu.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      },
+      "CalendarEvent": {
+        "filesWithRealUsage": 1,
+        "totalFilesMentioned": 2,
+        "usageFiles": [
+          {
+            "file": "src\\services\\calendar.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      },
+      "GamificationBadge": {
+        "filesWithRealUsage": 1,
+        "totalFilesMentioned": 2,
+        "usageFiles": [
+          {
+            "file": "src\\services\\calendar.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      },
+      "FoodProduct": {
+        "filesWithRealUsage": 1,
+        "totalFilesMentioned": 1,
+        "usageFiles": [
+          {
+            "file": "src\\services\\foodScanner.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      },
+      "Achievement": {
+        "filesWithRealUsage": 4,
+        "totalFilesMentioned": 8,
+        "usageFiles": [
+          {
+            "file": "src\\routes\\achievements.ts",
+            "usageTypes": [
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\routes\\statistics.ts",
+            "usageTypes": [
+              "API_ENDPOINT",
+              "API_ENDPOINT",
+              "API_ENDPOINT",
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\services\\achievements.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION",
+              "BUSINESS_LOGIC",
+              "BUSINESS_LOGIC",
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\services\\statistics.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      },
+      "UserAchievement": {
+        "filesWithRealUsage": 3,
+        "totalFilesMentioned": 5,
+        "usageFiles": [
+          {
+            "file": "src\\services\\achievements.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\foodScanner.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\statistics.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      },
+      "WaterIntake": {
+        "filesWithRealUsage": 3,
+        "totalFilesMentioned": 3,
+        "usageFiles": [
+          {
+            "file": "src\\routes\\nutrition.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\achievements.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\statistics.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      },
+      "DailyGoal": {
+        "filesWithRealUsage": 4,
+        "totalFilesMentioned": 6,
+        "usageFiles": [
+          {
+            "file": "src\\routes\\dailyGoal.ts",
+            "usageTypes": [
+              "API_ENDPOINT",
+              "BUSINESS_LOGIC"
+            ]
+          },
+          {
+            "file": "src\\services\\cronJobs.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\dailyGoal.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          },
+          {
+            "file": "src\\services\\statistics.ts",
+            "usageTypes": [
+              "DATABASE_OPERATION",
+              "DATABASE_OPERATION"
+            ]
+          }
+        ]
+      }
+    },
+    "suspicious": {
+      "Badge": {
+        "totalFilesMentioned": 1,
+        "mentionedInFiles": [
+          "src\\store\\calendarSlice.ts"
+        ],
+        "reason": "Only weak indicators found (imports, comments, etc.)"
+      }
+    }
+  }
+}

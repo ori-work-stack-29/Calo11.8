@@ -61,42 +61,62 @@ import {
   ChevronUp,
 } from "lucide-react-native";
 import { useMealDataRefresh } from "@/hooks/useMealDataRefresh";
+import { Colors } from "@/constants/Colors";
 
 const { width: screenWidth } = Dimensions.get("window");
 
 interface Ingredient {
   name: string;
   calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
+  protein_g?: number;
+  protein?: number;
+  carbs_g?: number;
+  carbs?: number;
+  fats_g?: number;
+  fat?: number;
+  fats?: number;
+  fiber_g?: number;
   fiber?: number;
+  sugar_g?: number;
   sugar?: number;
   sodium_mg?: number;
+  sodium?: number;
 }
 
 interface AnalysisData {
-  meal_name: string;
+  name?: string;
+  meal_name?: string;
   description?: string;
   calories: number;
-  protein_g: number;
-  carbs_g: number;
-  fats_g: number;
+  protein_g?: number;
+  protein?: number;
+  carbs_g?: number;
+  carbs?: number;
+  fats_g?: number;
+  fat?: number;
+  fats?: number;
   fiber_g?: number;
+  fiber?: number;
   sugar_g?: number;
-  sodium_g?: number;
-  ingredients: Ingredient[];
+  sugar?: number;
+  sodium_mg?: number;
+  sodium?: number;
+  saturated_fats_g?: number;
+  polyunsaturated_fats_g?: number;
+  monounsaturated_fats_g?: number;
+  omega_3_g?: number;
+  omega_6_g?: number;
+  cholesterol_mg?: number;
+  serving_size_g?: number;
+  ingredients?: Ingredient[];
   healthScore?: string;
   recommendations?: string;
+  cookingMethod?: string;
   cooking_method?: string;
   food_category?: string;
-}
-
-interface MealRating {
-  taste: number;
-  satisfaction: number;
-  energy: number;
-  overall: number;
+  confidence?: number;
+  servingSize?: string;
+  healthNotes?: string;
 }
 
 export default function CameraScreen() {
@@ -120,15 +140,8 @@ export default function CameraScreen() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
   const [hasBeenAnalyzed, setHasBeenAnalyzed] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [mealRating, setMealRating] = useState<MealRating>({
-    taste: 0,
-    satisfaction: 0,
-    energy: 0,
-    overall: 0,
-  });
-  const [showNutritionDetails, setShowNutritionDetails] = useState(false);
-  const [showMetadata, setShowMetadata] = useState(false);
+  const [showNutritionDetails, setShowNutritionDetails] = useState(true);
+  const [showAdvancedNutrition, setShowAdvancedNutrition] = useState(false);
 
   // Animation refs
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -145,9 +158,16 @@ export default function CameraScreen() {
 
   // Update local state when pending meal changes
   useEffect(() => {
+    console.log("🔄 Pending meal changed:", pendingMeal);
+
     if (pendingMeal?.analysis) {
+      console.log("📊 Setting analysis data:", pendingMeal.analysis);
       setAnalysisData(pendingMeal.analysis);
-      setEditedIngredients(pendingMeal.analysis.ingredients || []);
+
+      // Set ingredients with proper fallbacks
+      const ingredients = pendingMeal.analysis.ingredients || [];
+      console.log("🥗 Setting ingredients:", ingredients);
+      setEditedIngredients(ingredients);
       setHasBeenAnalyzed(true);
 
       // Convert base64 to display format if needed
@@ -179,6 +199,40 @@ export default function CameraScreen() {
       ]).start();
     }
   }, [pendingMeal]);
+
+  // Helper function to get nutrition value with fallbacks
+  const getNutritionValue = (
+    data: AnalysisData | Ingredient,
+    field: string
+  ): number => {
+    if (!data) return 0;
+
+    // Try multiple field variations
+    const variations = [
+      field,
+      field.replace("_g", ""),
+      field.replace("_mg", ""),
+      field.replace("g", ""),
+      field.replace("mg", ""),
+    ];
+
+    for (const variation of variations) {
+      const value = data[variation];
+      if (typeof value === "number" && value > 0) {
+        return Math.round(value);
+      }
+      if (typeof value === "string" && !isNaN(parseFloat(value))) {
+        return Math.round(parseFloat(value));
+      }
+    }
+
+    return 0;
+  };
+
+  // Helper function to get meal name
+  const getMealName = (data: AnalysisData): string => {
+    return data?.name || data?.meal_name || "Analyzed Meal";
+  };
 
   // Image selection handlers
   const handleTakePhoto = async () => {
@@ -248,8 +302,8 @@ export default function CameraScreen() {
     setEditedIngredients([]);
     setUserComment("");
     setHasBeenAnalyzed(false);
-    setIsFavorite(false);
-    setMealRating({ taste: 0, satisfaction: 0, energy: 0, overall: 0 });
+    setShowNutritionDetails(true);
+    setShowAdvancedNutrition(false);
     dispatch(clearPendingMeal());
     dispatch(clearError());
 
@@ -401,21 +455,10 @@ export default function CameraScreen() {
 
   const confirmDeleteMeal = () => {
     console.log("🗑️ Deleting meal analysis...");
-
     resetAnalysisState();
     setSelectedImage(null);
     setShowDeleteConfirm(false);
-
     Alert.alert(t("common.success"), "Meal analysis deleted successfully");
-  };
-
-  // Rating handlers
-  const handleRatingChange = (type: keyof MealRating, value: number) => {
-    setMealRating((prev) => ({
-      ...prev,
-      [type]: value,
-      overall: type === "overall" ? value : prev.overall,
-    }));
   };
 
   // Ingredient editing functions
@@ -468,19 +511,10 @@ export default function CameraScreen() {
     setEditingIndex(-1);
   };
 
-  // Calculate total nutrition from ingredients
-  const calculateTotalNutrition = (ingredients: Ingredient[]) => {
-    return ingredients.reduce(
-      (totals, ingredient) => ({
-        calories: totals.calories + (ingredient.calories || 0),
-        protein: totals.protein + (ingredient.protein || 0),
-        carbs: totals.carbs + (ingredient.carbs || 0),
-        fat: totals.fat + (ingredient.fat || 0),
-        fiber: totals.fiber + (ingredient.fiber || 0),
-        sugar: totals.sugar + (ingredient.sugar || 0),
-        sodium: totals.sodium + (ingredient.sodium_mg || 0),
-      }),
-      {
+  // Calculate total nutrition from current data
+  const calculateTotalNutrition = () => {
+    if (!analysisData)
+      return {
         calories: 0,
         protein: 0,
         carbs: 0,
@@ -488,60 +522,92 @@ export default function CameraScreen() {
         fiber: 0,
         sugar: 0,
         sodium: 0,
-      }
-    );
+      };
+
+    return {
+      calories: analysisData.calories || 0,
+      protein:
+        getNutritionValue(analysisData, "protein_g") ||
+        getNutritionValue(analysisData, "protein") ||
+        0,
+      carbs:
+        getNutritionValue(analysisData, "carbs_g") ||
+        getNutritionValue(analysisData, "carbs") ||
+        0,
+      fat:
+        getNutritionValue(analysisData, "fats_g") ||
+        getNutritionValue(analysisData, "fat") ||
+        0,
+      fiber:
+        getNutritionValue(analysisData, "fiber_g") ||
+        getNutritionValue(analysisData, "fiber") ||
+        0,
+      sugar:
+        getNutritionValue(analysisData, "sugar_g") ||
+        getNutritionValue(analysisData, "sugar") ||
+        0,
+      sodium:
+        getNutritionValue(analysisData, "sodium_mg") ||
+        getNutritionValue(analysisData, "sodium") ||
+        0,
+    };
   };
 
   // Get nutrition quality score
   const getNutritionQuality = () => {
-    if (!analysisData) return { score: 0, label: "Unknown", color: "#9ca3af" };
+    if (!analysisData)
+      return { score: 0, label: "Unknown", color: Colors.light.textSecondary };
 
-    const calories = analysisData.calories || 0;
-    const protein = analysisData.protein_g || 0;
-    const fiber = analysisData.fiber_g || 0;
-    const sugar = analysisData.sugar_g || 0;
+    const totalNutrition = calculateTotalNutrition();
 
     let score = 50; // Base score
 
     // Protein bonus
-    if (protein > 20) score += 20;
-    else if (protein > 10) score += 10;
+    if (totalNutrition.protein > 20) score += 20;
+    else if (totalNutrition.protein > 10) score += 10;
 
     // Fiber bonus
-    if (fiber > 10) score += 15;
-    else if (fiber > 5) score += 8;
+    if (totalNutrition.fiber > 10) score += 15;
+    else if (totalNutrition.fiber > 5) score += 8;
 
     // Sugar penalty
-    if (sugar > 25) score -= 15;
-    else if (sugar > 15) score -= 8;
+    if (totalNutrition.sugar > 25) score -= 15;
+    else if (totalNutrition.sugar > 15) score -= 8;
 
     // Calorie balance
-    if (calories > 100 && calories < 600) score += 10;
+    if (totalNutrition.calories > 100 && totalNutrition.calories < 600)
+      score += 10;
 
     score = Math.max(0, Math.min(100, score));
 
-    if (score >= 80) return { score, label: "Excellent", color: "#10b981" };
-    if (score >= 60) return { score, label: "Good", color: "#f59e0b" };
-    if (score >= 40) return { score, label: "Fair", color: "#f97316" };
-    return { score, label: "Poor", color: "#ef4444" };
+    if (score >= 80)
+      return { score, label: "Excellent", color: Colors.light.success };
+    if (score >= 60)
+      return { score, label: "Good", color: Colors.light.warning };
+    if (score >= 40)
+      return { score, label: "Fair", color: Colors.light.secondary };
+    return { score, label: "Poor", color: Colors.light.error };
   };
 
   // Render functions
   const renderImageSelection = () => (
     <View style={styles.imageSelectionContainer}>
       <LinearGradient
-        colors={["#f0fdf4", "#ecfdf5"]}
+        colors={[Colors.light.surface, Colors.light.surfaceVariant]}
         style={styles.imageSelectionGradient}
       >
         <View style={styles.imageSelectionHeader}>
-          <Camera size={48} color="#10b981" />
+          <View style={styles.cameraIconContainer}>
+            <Camera size={60} color={Colors.light.primary} />
+          </View>
           <Text style={[styles.imageSelectionTitle, isRTL && styles.rtlText]}>
-            {t("camera.smart_analysis")}
+            Smart Meal Analysis
           </Text>
           <Text
             style={[styles.imageSelectionSubtitle, isRTL && styles.rtlText]}
           >
-            {t("camera.analysis_subtitle")}
+            Take a photo or select from gallery to get detailed nutritional
+            information
           </Text>
         </View>
 
@@ -551,13 +617,11 @@ export default function CameraScreen() {
             onPress={handleTakePhoto}
           >
             <LinearGradient
-              colors={["#10b981", "#059669"]}
+              colors={[Colors.light.primary, Colors.light.primaryDark]}
               style={styles.imageButtonGradient}
             >
               <Camera size={24} color="#ffffff" />
-              <Text style={styles.imageButtonText}>
-                {t("camera.take_picture")}
-              </Text>
+              <Text style={styles.imageButtonText}>Take Photo</Text>
             </LinearGradient>
           </TouchableOpacity>
 
@@ -566,25 +630,24 @@ export default function CameraScreen() {
             onPress={handleSelectFromGallery}
           >
             <LinearGradient
-              colors={["#059669", "#047857"]}
+              colors={[Colors.light.secondary, Colors.light.secondaryDark]}
               style={styles.imageButtonGradient}
             >
               <ImageIcon size={24} color="#ffffff" />
-              <Text style={styles.imageButtonText}>
-                {t("camera.choose_gallery")}
-              </Text>
+              <Text style={styles.imageButtonText}>Choose from Gallery</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
 
         <View style={styles.tipContainer}>
-          <Info size={20} color="#10b981" />
+          <Info size={20} color={Colors.light.primary} />
           <View style={styles.tipTextContainer}>
             <Text style={[styles.tipTitle, isRTL && styles.rtlText]}>
-              {t("camera.optimal_results")}
+              Pro Tips for Better Results
             </Text>
             <Text style={[styles.tipDescription, isRTL && styles.rtlText]}>
-              {t("camera.tip_description")}
+              • Ensure good lighting and clear view of the food{"\n"}• Include
+              all components of your meal{"\n"}• Avoid shadows and reflections
             </Text>
           </View>
         </View>
@@ -594,6 +657,8 @@ export default function CameraScreen() {
 
   const renderMealHeader = () => {
     if (!analysisData) return null;
+
+    const quality = getNutritionQuality();
 
     return (
       <Animated.View
@@ -606,38 +671,36 @@ export default function CameraScreen() {
         ]}
       >
         <LinearGradient
-          colors={["#ffffff", "#f8fafc"]}
+          colors={[Colors.light.primary, Colors.light.primaryDark]}
           style={styles.mealHeaderGradient}
         >
           <View style={styles.mealHeaderContent}>
             <View style={styles.mealTitleRow}>
-              <Text style={[styles.mealTitle, isRTL && styles.rtlText]}>
-                {analysisData.meal_name}
-              </Text>
-              <TouchableOpacity
+              <View style={styles.mealTitleContainer}>
+                <Text style={[styles.mealTitle, isRTL && styles.rtlText]}>
+                  {getMealName(analysisData)}
+                </Text>
+                <View style={styles.confidenceContainer}>
+                  <Eye size={14} color="rgba(255,255,255,0.8)" />
+                  <Text style={styles.confidenceText}>
+                    {Math.round(analysisData.confidence || 85)}% confidence
+                  </Text>
+                </View>
+              </View>
+              <View
                 style={[
-                  styles.favoriteButton,
-                  isFavorite && styles.favoriteActive,
+                  styles.qualityBadge,
+                  { backgroundColor: quality.color },
                 ]}
-                onPress={() => setIsFavorite(!isFavorite)}
               >
-                <Heart
-                  size={24}
-                  color={isFavorite ? "#ffffff" : "#ef4444"}
-                  fill={isFavorite ? "#ef4444" : "transparent"}
-                />
-              </TouchableOpacity>
+                <Star size={12} color="#ffffff" />
+                <Text style={styles.qualityText}>{quality.label}</Text>
+              </View>
             </View>
-
-            {analysisData.description && (
-              <Text style={[styles.mealDescription, isRTL && styles.rtlText]}>
-                {analysisData.description}
-              </Text>
-            )}
 
             <View style={styles.mealMetaRow}>
               <View style={styles.metaItem}>
-                <Clock size={16} color="#6b7280" />
+                <Clock size={16} color="rgba(255,255,255,0.9)" />
                 <Text style={styles.metaText}>
                   {new Date().toLocaleTimeString([], {
                     hour: "2-digit",
@@ -646,26 +709,14 @@ export default function CameraScreen() {
                 </Text>
               </View>
 
-              {analysisData.cooking_method && (
+              {(analysisData.cooking_method || analysisData.cookingMethod) && (
                 <View style={styles.metaItem}>
-                  <Apple size={16} color="#6b7280" />
+                  <Apple size={16} color="rgba(255,255,255,0.9)" />
                   <Text style={styles.metaText}>
-                    {analysisData.cooking_method}
+                    {analysisData.cooking_method || analysisData.cookingMethod}
                   </Text>
                 </View>
               )}
-
-              <View style={styles.metaItem}>
-                <Eye size={16} color="#6b7280" />
-                <Text style={styles.metaText}>
-                  {Math.round(
-                    analysisData.healthScore
-                      ? parseFloat(analysisData.healthScore)
-                      : 75
-                  )}
-                  % confidence
-                </Text>
-              </View>
             </View>
           </View>
         </LinearGradient>
@@ -676,8 +727,10 @@ export default function CameraScreen() {
   const renderNutritionSummary = () => {
     if (!analysisData) return null;
 
-    const totalNutrition = calculateTotalNutrition(editedIngredients);
-    const quality = getNutritionQuality();
+    const totalNutrition = calculateTotalNutrition();
+
+    console.log("🍎 Rendering nutrition summary:", totalNutrition);
+    console.log("🥗 Current ingredients:", editedIngredients);
 
     return (
       <Animated.View
@@ -690,102 +743,186 @@ export default function CameraScreen() {
         ]}
       >
         <LinearGradient
-          colors={["#ffffff", "#f8fafc"]}
+          colors={[Colors.light.cardBackground, Colors.light.surface]}
           style={styles.nutritionGradient}
         >
-          <TouchableOpacity
-            style={styles.nutritionHeader}
-            onPress={() => setShowNutritionDetails(!showNutritionDetails)}
-          >
-            <View style={styles.nutritionTitleRow}>
-              <Text style={[styles.nutritionTitle, isRTL && styles.rtlText]}>
-                {t("camera.nutritional_info")}
-              </Text>
-              <View
-                style={[
-                  styles.qualityBadge,
-                  { backgroundColor: quality.color },
-                ]}
-              >
-                <Text style={styles.qualityText}>{quality.label}</Text>
-              </View>
-            </View>
-            <ChevronDown
-              size={20}
-              color="#6b7280"
-              style={[
-                styles.chevron,
-                showNutritionDetails && styles.chevronRotated,
-              ]}
-            />
-          </TouchableOpacity>
+          <View style={styles.nutritionHeader}>
+            <Text style={[styles.nutritionTitle, isRTL && styles.rtlText]}>
+              Nutritional Information
+            </Text>
+            <Text style={styles.nutritionSubtitle}>
+              Complete breakdown of your meal
+            </Text>
+          </View>
 
           <View style={styles.nutritionGrid}>
             <View style={styles.nutritionCard}>
-              <Flame size={20} color="#ef4444" />
+              <View
+                style={[
+                  styles.nutritionIconContainer,
+                  { backgroundColor: "#fee2e2" },
+                ]}
+              >
+                <Flame size={24} color="#ef4444" />
+              </View>
               <Text style={styles.nutritionValue}>
-                {Math.round(totalNutrition.calories)}
+                {totalNutrition.calories}
               </Text>
-              <Text style={styles.nutritionLabel}>
-                {t("meals.calories") || "Calories"}
-              </Text>
+              <Text style={styles.nutritionLabel}>Calories</Text>
             </View>
 
             <View style={styles.nutritionCard}>
-              <Zap size={20} color="#3b82f6" />
+              <View
+                style={[
+                  styles.nutritionIconContainer,
+                  { backgroundColor: "#dbeafe" },
+                ]}
+              >
+                <Zap size={24} color="#3b82f6" />
+              </View>
               <Text style={styles.nutritionValue}>
-                {Math.round(totalNutrition.protein)}g
+                {totalNutrition.protein}g
               </Text>
-              <Text style={styles.nutritionLabel}>
-                {t("meals.protein") || "Protein"}
-              </Text>
+              <Text style={styles.nutritionLabel}>Protein</Text>
             </View>
 
             <View style={styles.nutritionCard}>
-              <Wheat size={20} color="#f59e0b" />
-              <Text style={styles.nutritionValue}>
-                {Math.round(totalNutrition.carbs)}g
-              </Text>
-              <Text style={styles.nutritionLabel}>
-                {t("meals.carbs") || "Carbs"}
-              </Text>
+              <View
+                style={[
+                  styles.nutritionIconContainer,
+                  { backgroundColor: "#fef3c7" },
+                ]}
+              >
+                <Wheat size={24} color="#f59e0b" />
+              </View>
+              <Text style={styles.nutritionValue}>{totalNutrition.carbs}g</Text>
+              <Text style={styles.nutritionLabel}>Carbs</Text>
             </View>
 
             <View style={styles.nutritionCard}>
-              <Droplets size={20} color="#8b5cf6" />
-              <Text style={styles.nutritionValue}>
-                {Math.round(totalNutrition.fat)}g
-              </Text>
-              <Text style={styles.nutritionLabel}>
-                {t("meals.fat") || "Fat"}
-              </Text>
+              <View
+                style={[
+                  styles.nutritionIconContainer,
+                  { backgroundColor: "#ecfdf5" },
+                ]}
+              >
+                <Droplets size={24} color="#10b981" />
+              </View>
+              <Text style={styles.nutritionValue}>{totalNutrition.fat}g</Text>
+              <Text style={styles.nutritionLabel}>Fat</Text>
             </View>
           </View>
+
+          {(totalNutrition.fiber > 0 ||
+            totalNutrition.sugar > 0 ||
+            totalNutrition.sodium > 0) && (
+            <TouchableOpacity
+              style={styles.detailsToggle}
+              onPress={() => setShowNutritionDetails(!showNutritionDetails)}
+            >
+              <Text style={styles.detailsToggleText}>
+                {showNutritionDetails ? "Hide Details" : "Show More Details"}
+              </Text>
+              <Animated.View
+                style={[
+                  styles.chevron,
+                  showNutritionDetails && styles.chevronRotated,
+                ]}
+              >
+                <ChevronDown size={18} color={Colors.light.primary} />
+              </Animated.View>
+            </TouchableOpacity>
+          )}
 
           {showNutritionDetails && (
             <Animated.View style={styles.detailedNutrition}>
               {totalNutrition.fiber > 0 && (
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Fiber:</Text>
+                  <View style={styles.detailLabelContainer}>
+                    <Apple size={16} color={Colors.light.textSecondary} />
+                    <Text style={styles.detailLabel}>Fiber</Text>
+                  </View>
                   <Text style={styles.detailValue}>
-                    {Math.round(totalNutrition.fiber)}g
+                    {totalNutrition.fiber}g
                   </Text>
                 </View>
               )}
               {totalNutrition.sugar > 0 && (
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Sugar:</Text>
+                  <View style={styles.detailLabelContainer}>
+                    <Heart size={16} color={Colors.light.textSecondary} />
+                    <Text style={styles.detailLabel}>Sugar</Text>
+                  </View>
                   <Text style={styles.detailValue}>
-                    {Math.round(totalNutrition.sugar)}g
+                    {totalNutrition.sugar}g
                   </Text>
                 </View>
               )}
               {totalNutrition.sodium > 0 && (
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Sodium:</Text>
+                  <View style={styles.detailLabelContainer}>
+                    <Droplets size={16} color={Colors.light.textSecondary} />
+                    <Text style={styles.detailLabel}>Sodium</Text>
+                  </View>
                   <Text style={styles.detailValue}>
-                    {Math.round(totalNutrition.sodium)}mg
+                    {totalNutrition.sodium}mg
                   </Text>
+                </View>
+              )}
+
+              {/* Advanced nutrition */}
+              <TouchableOpacity
+                style={styles.advancedToggle}
+                onPress={() => setShowAdvancedNutrition(!showAdvancedNutrition)}
+              >
+                <Text style={styles.advancedToggleText}>
+                  Advanced Nutrition
+                </Text>
+                <Animated.View
+                  style={[showAdvancedNutrition && styles.chevronRotated]}
+                >
+                  <ChevronDown size={16} color={Colors.light.primary} />
+                </Animated.View>
+              </TouchableOpacity>
+
+              {showAdvancedNutrition && (
+                <View style={styles.advancedNutrition}>
+                  {getNutritionValue(analysisData, "saturated_fats_g") > 0 && (
+                    <View style={styles.detailRow}>
+                      <View style={styles.detailLabelContainer}>
+                        <Droplets
+                          size={16}
+                          color={Colors.light.textSecondary}
+                        />
+                        <Text style={styles.detailLabel}>Saturated Fat</Text>
+                      </View>
+                      <Text style={styles.detailValue}>
+                        {getNutritionValue(analysisData, "saturated_fats_g")}g
+                      </Text>
+                    </View>
+                  )}
+                  {getNutritionValue(analysisData, "cholesterol_mg") > 0 && (
+                    <View style={styles.detailRow}>
+                      <View style={styles.detailLabelContainer}>
+                        <Heart size={16} color={Colors.light.textSecondary} />
+                        <Text style={styles.detailLabel}>Cholesterol</Text>
+                      </View>
+                      <Text style={styles.detailValue}>
+                        {getNutritionValue(analysisData, "cholesterol_mg")}mg
+                      </Text>
+                    </View>
+                  )}
+                  {getNutritionValue(analysisData, "serving_size_g") > 0 && (
+                    <View style={styles.detailRow}>
+                      <View style={styles.detailLabelContainer}>
+                        <Apple size={16} color={Colors.light.textSecondary} />
+                        <Text style={styles.detailLabel}>Serving Size</Text>
+                      </View>
+                      <Text style={styles.detailValue}>
+                        {getNutritionValue(analysisData, "serving_size_g")}g
+                      </Text>
+                    </View>
+                  )}
                 </View>
               )}
             </Animated.View>
@@ -795,132 +932,78 @@ export default function CameraScreen() {
     );
   };
 
-  const renderRatingSection = () => {
-    if (!hasBeenAnalyzed) return null;
-
-    const renderStars = (rating: number, onPress: (value: number) => void) => (
-      <View style={styles.starsContainer}>
-        {[1, 2, 3, 4, 5].map((star) => (
-          <TouchableOpacity
-            key={star}
-            onPress={() => onPress(star)}
-            style={styles.starButton}
-          >
-            <Star
-              size={20}
-              color={star <= rating ? "#fbbf24" : "#d1d5db"}
-              fill={star <= rating ? "#fbbf24" : "transparent"}
-            />
-          </TouchableOpacity>
-        ))}
-      </View>
-    );
-
-    return (
-      <View style={styles.ratingContainer}>
-        <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-          Rate this meal
-        </Text>
-
-        <View style={styles.ratingGrid}>
-          <View style={styles.ratingItem}>
-            <Text style={styles.ratingLabel}>Taste</Text>
-            {renderStars(mealRating.taste, (value) =>
-              handleRatingChange("taste", value)
-            )}
-          </View>
-
-          <View style={styles.ratingItem}>
-            <Text style={styles.ratingLabel}>Satisfaction</Text>
-            {renderStars(mealRating.satisfaction, (value) =>
-              handleRatingChange("satisfaction", value)
-            )}
-          </View>
-
-          <View style={styles.ratingItem}>
-            <Text style={styles.ratingLabel}>Energy</Text>
-            {renderStars(mealRating.energy, (value) =>
-              handleRatingChange("energy", value)
-            )}
-          </View>
-
-          <View style={styles.ratingItem}>
-            <Text style={styles.ratingLabel}>Overall</Text>
-            {renderStars(mealRating.overall, (value) =>
-              handleRatingChange("overall", value)
-            )}
-          </View>
-        </View>
-      </View>
-    );
-  };
-
   const renderSelectedImage = () => (
     <View style={styles.selectedImageContainer}>
       <View style={styles.imageWrapper}>
         <Image source={{ uri: selectedImage! }} style={styles.selectedImage} />
+        <LinearGradient
+          colors={["transparent", "rgba(0,0,0,0.3)"]}
+          style={styles.imageGradientOverlay}
+        />
 
         {/* Image overlay with quick actions */}
         <View style={styles.imageOverlay}>
           <TouchableOpacity
-            style={styles.overlayButton}
+            style={[styles.overlayButton, styles.deleteOverlayButton]}
             onPress={() => {
               resetAnalysisState();
               setSelectedImage(null);
             }}
           >
-            <X size={20} color="#ffffff" />
+            <X size={18} color="#ffffff" />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.overlayButton}
+            style={[styles.overlayButton, styles.retakeOverlayButton]}
             onPress={handleTakePhoto}
           >
-            <RotateCcw size={20} color="#ffffff" />
+            <RotateCcw size={18} color="#ffffff" />
           </TouchableOpacity>
         </View>
       </View>
 
       {!hasBeenAnalyzed && (
-        <View style={styles.commentContainer}>
-          <Text style={[styles.commentLabel, isRTL && styles.rtlText]}>
-            {t("camera.additional_info")}
-          </Text>
-          <TextInput
-            style={[styles.commentInput, isRTL && styles.rtlTextInput]}
-            placeholder={t("camera.enter_correction")}
-            placeholderTextColor="#9ca3af"
-            value={userComment}
-            onChangeText={setUserComment}
-            multiline
-            numberOfLines={3}
-            textAlign={isRTL ? "right" : "left"}
-          />
-        </View>
-      )}
-
-      {!hasBeenAnalyzed && (
-        <TouchableOpacity
-          style={[styles.analyzeButton, isAnalyzing && styles.buttonDisabled]}
-          onPress={handleAnalyzeImage}
-          disabled={isAnalyzing}
-        >
-          <LinearGradient
-            colors={
-              isAnalyzing ? ["#9ca3af", "#6b7280"] : ["#10b981", "#059669"]
-            }
-            style={styles.analyzeButtonGradient}
-          >
-            {isAnalyzing ? (
-              <ActivityIndicator size="small" color="#ffffff" />
-            ) : (
-              <Send size={20} color="#ffffff" />
-            )}
-            <Text style={styles.analyzeButtonText}>
-              {isAnalyzing ? t("camera.analyzing") : t("camera.analyze_photo")}
+        <>
+          <View style={styles.commentContainer}>
+            <Text style={[styles.commentLabel, isRTL && styles.rtlText]}>
+              Additional Information (Optional)
             </Text>
-          </LinearGradient>
-        </TouchableOpacity>
+            <TextInput
+              style={[styles.commentInput, isRTL && styles.rtlTextInput]}
+              placeholder="Add any details about the meal (ingredients, cooking method, etc.)"
+              placeholderTextColor={Colors.light.textSecondary}
+              value={userComment}
+              onChangeText={setUserComment}
+              multiline
+              numberOfLines={3}
+              textAlign={isRTL ? "right" : "left"}
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.analyzeButton, isAnalyzing && styles.buttonDisabled]}
+            onPress={handleAnalyzeImage}
+            disabled={isAnalyzing}
+          >
+            <LinearGradient
+              colors={
+                isAnalyzing
+                  ? [Colors.light.disabled, Colors.light.textSecondary]
+                  : [Colors.light.primary, Colors.light.primaryDark]
+              }
+              style={styles.analyzeButtonGradient}
+            >
+              {isAnalyzing ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Send size={20} color="#ffffff" />
+              )}
+              <Text style={styles.analyzeButtonText}>
+                {isAnalyzing ? "Analyzing Meal..." : "Analyze My Meal"}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </>
       )}
     </View>
   );
@@ -928,93 +1011,185 @@ export default function CameraScreen() {
   const renderAnalysisResults = () => {
     if (!analysisData) return null;
 
+    console.log("🔄 Rendering analysis results with data:", analysisData);
+
     return (
       <View style={styles.analysisContainer}>
         {renderMealHeader()}
         {renderNutritionSummary()}
-        {renderRatingSection()}
 
-        {/* Ingredients Section */}
-        <View style={styles.ingredientsSection}>
-          <View style={styles.ingredientsHeader}>
-            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-              {t("camera.identified_ingredients")}
-            </Text>
-            <TouchableOpacity
-              style={styles.addIngredientButton}
-              onPress={handleAddIngredient}
-            >
-              <Plus size={16} color="#10b981" />
-              <Text style={styles.addIngredientText}>{t("common.add")}</Text>
-            </TouchableOpacity>
-          </View>
+        {/* Ingredients Section - Always show if we have analysis data */}
+        {analysisData && (
+          <View style={styles.ingredientsSection}>
+            <View style={styles.ingredientsHeader}>
+              <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+                Identified Ingredients
+              </Text>
+              <TouchableOpacity
+                style={styles.addIngredientButton}
+                onPress={handleAddIngredient}
+              >
+                <Plus size={16} color={Colors.light.primary} />
+                <Text style={styles.addIngredientText}>Add</Text>
+              </TouchableOpacity>
+            </View>
 
-          {editedIngredients.length > 0 ? (
-            editedIngredients.map((ingredient, index) => (
-              <View key={index} style={styles.ingredientCard}>
-                <View style={styles.ingredientInfo}>
-                  <Text
-                    style={[styles.ingredientName, isRTL && styles.rtlText]}
-                  >
-                    {ingredient.name || `Ingredient ${index + 1}`}
-                  </Text>
-                  <View style={styles.ingredientNutrition}>
-                    <Text style={styles.ingredientNutritionText}>
-                      {Math.round(ingredient.calories || 0)}{" "}
-                      {t("meals.kcal") || "kcal"} •{" "}
-                      {Math.round(ingredient.protein || 0)}g{" "}
-                      {t("meals.protein") || "protein"}
+            {editedIngredients.length > 0 ? (
+              editedIngredients.map((ingredient, index) => (
+                <View key={`edited-${index}`} style={styles.ingredientCard}>
+                  <View style={styles.ingredientInfo}>
+                    <Text
+                      style={[styles.ingredientName, isRTL && styles.rtlText]}
+                    >
+                      {ingredient.name || `Ingredient ${index + 1}`}
                     </Text>
-                    {(ingredient.carbs || 0) > 0 && (
+                    <View style={styles.ingredientNutrition}>
                       <Text style={styles.ingredientNutritionText}>
-                        • {Math.round(ingredient.carbs)}g{" "}
-                        {t("meals.carbs") || "carbs"}
+                        {Math.round(
+                          getNutritionValue(ingredient, "calories") || 0
+                        )}{" "}
+                        cal
                       </Text>
-                    )}
-                    {(ingredient.fat || 0) > 0 && (
-                      <Text style={styles.ingredientNutritionText}>
-                        • {Math.round(ingredient.fat)}g{" "}
-                        {t("meals.fat") || "fat"}
-                      </Text>
-                    )}
+                      {(getNutritionValue(ingredient, "protein_g") ||
+                        getNutritionValue(ingredient, "protein")) > 0 && (
+                        <Text style={styles.ingredientNutritionText}>
+                          •{" "}
+                          {Math.round(
+                            getNutritionValue(ingredient, "protein_g") ||
+                              getNutritionValue(ingredient, "protein") ||
+                              0
+                          )}
+                          g protein
+                        </Text>
+                      )}
+                      {(getNutritionValue(ingredient, "carbs_g") ||
+                        getNutritionValue(ingredient, "carbs")) > 0 && (
+                        <Text style={styles.ingredientNutritionText}>
+                          •{" "}
+                          {Math.round(
+                            getNutritionValue(ingredient, "carbs_g") ||
+                              getNutritionValue(ingredient, "carbs") ||
+                              0
+                          )}
+                          g carbs
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+
+                  <View style={styles.ingredientActions}>
+                    <TouchableOpacity
+                      style={styles.ingredientActionButton}
+                      onPress={() => handleEditIngredient(ingredient, index)}
+                    >
+                      <Edit3 size={16} color={Colors.light.primary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.ingredientActionButton}
+                      onPress={() => handleRemoveIngredient(index)}
+                    >
+                      <Trash2 size={16} color={Colors.light.error} />
+                    </TouchableOpacity>
                   </View>
                 </View>
+              ))
+            ) : analysisData.ingredients &&
+              analysisData.ingredients.length > 0 ? (
+              analysisData.ingredients.map((ingredient, index) => (
+                <View key={`original-${index}`} style={styles.ingredientCard}>
+                  <View style={styles.ingredientInfo}>
+                    <Text
+                      style={[styles.ingredientName, isRTL && styles.rtlText]}
+                    >
+                      {typeof ingredient === "string"
+                        ? ingredient
+                        : ingredient.name || `Ingredient ${index + 1}`}
+                    </Text>
+                    <View style={styles.ingredientNutrition}>
+                      {typeof ingredient !== "string" && (
+                        <>
+                          <Text style={styles.ingredientNutritionText}>
+                            {Math.round(
+                              getNutritionValue(ingredient, "calories") || 0
+                            )}{" "}
+                            cal
+                          </Text>
+                          {(getNutritionValue(ingredient, "protein_g") ||
+                            getNutritionValue(ingredient, "protein")) > 0 && (
+                            <Text style={styles.ingredientNutritionText}>
+                              •{" "}
+                              {Math.round(
+                                getNutritionValue(ingredient, "protein_g") ||
+                                  getNutritionValue(ingredient, "protein") ||
+                                  0
+                              )}
+                              g protein
+                            </Text>
+                          )}
+                          {(getNutritionValue(ingredient, "carbs_g") ||
+                            getNutritionValue(ingredient, "carbs")) > 0 && (
+                            <Text style={styles.ingredientNutritionText}>
+                              •{" "}
+                              {Math.round(
+                                getNutritionValue(ingredient, "carbs_g") ||
+                                  getNutritionValue(ingredient, "carbs") ||
+                                  0
+                              )}
+                              g carbs
+                            </Text>
+                          )}
+                        </>
+                      )}
+                    </View>
+                  </View>
 
-                <View style={styles.ingredientActions}>
-                  <TouchableOpacity
-                    style={styles.ingredientActionButton}
-                    onPress={() => handleEditIngredient(ingredient, index)}
-                  >
-                    <Edit3 size={16} color="#6b7280" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.ingredientActionButton}
-                    onPress={() => handleRemoveIngredient(index)}
-                  >
-                    <Trash2 size={16} color="#ef4444" />
-                  </TouchableOpacity>
+                  <View style={styles.ingredientActions}>
+                    <TouchableOpacity
+                      style={styles.ingredientActionButton}
+                      onPress={() => {
+                        const ingredientToEdit =
+                          typeof ingredient === "string"
+                            ? {
+                                name: ingredient,
+                                calories: 0,
+                                protein: 0,
+                                carbs: 0,
+                                fat: 0,
+                              }
+                            : ingredient;
+                        handleEditIngredient(ingredientToEdit, index);
+                      }}
+                    >
+                      <Edit3 size={16} color={Colors.light.primary} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
+              ))
+            ) : (
+              <View style={styles.noIngredientsContainer}>
+                <Text
+                  style={[styles.noIngredientsText, isRTL && styles.rtlText]}
+                >
+                  No ingredients identified. Add some manually or re-analyze the
+                  image.
+                </Text>
               </View>
-            ))
-          ) : (
-            <Text style={styles.noIngredientsText}>
-              {t("camera.no_ingredients_found") || "No ingredients identified"}
-            </Text>
-          )}
-        </View>
+            )}
+          </View>
+        )}
 
         {/* Recommendations Section */}
-        {analysisData.recommendations && (
+        {(analysisData.recommendations || analysisData.healthNotes) && (
           <View style={styles.recommendationsSection}>
             <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-              AI Recommendations
+              AI Health Recommendations
             </Text>
             <View style={styles.recommendationCard}>
-              <TrendingUp size={20} color="#10b981" />
+              <TrendingUp size={20} color={Colors.light.primary} />
               <Text
                 style={[styles.recommendationText, isRTL && styles.rtlText]}
               >
-                {analysisData.recommendations}
+                {analysisData.recommendations || analysisData.healthNotes}
               </Text>
             </View>
           </View>
@@ -1026,10 +1201,8 @@ export default function CameraScreen() {
             style={styles.secondaryButton}
             onPress={handleDeleteMeal}
           >
-            <Trash2 size={20} color="#ef4444" />
-            <Text style={styles.secondaryButtonText}>
-              {t("camera.delete_analysis")}
-            </Text>
+            <Trash2 size={18} color={Colors.light.error} />
+            <Text style={styles.secondaryButtonText}>Delete</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -1041,14 +1214,12 @@ export default function CameraScreen() {
             disabled={isUpdating}
           >
             {isUpdating ? (
-              <ActivityIndicator size="small" color="#10b981" />
+              <ActivityIndicator size="small" color={Colors.light.primary} />
             ) : (
-              <RefreshCw size={20} color="#10b981" />
+              <RefreshCw size={18} color={Colors.light.primary} />
             )}
             <Text style={styles.secondaryButtonText}>
-              {isUpdating
-                ? t("camera.updating_analysis")
-                : t("camera.re_analyze")}
+              {isUpdating ? "Updating..." : "Re-analyze"}
             </Text>
           </TouchableOpacity>
 
@@ -1059,7 +1230,9 @@ export default function CameraScreen() {
           >
             <LinearGradient
               colors={
-                isPosting ? ["#9ca3af", "#6b7280"] : ["#10b981", "#059669"]
+                isPosting
+                  ? [Colors.light.disabled, Colors.light.textSecondary]
+                  : [Colors.light.success, Colors.light.emerald600]
               }
               style={styles.primaryButtonGradient}
             >
@@ -1069,7 +1242,7 @@ export default function CameraScreen() {
                 <Save size={20} color="#ffffff" />
               )}
               <Text style={styles.primaryButtonText}>
-                {isPosting ? t("common.loading") : t("camera.save_meal")}
+                {isPosting ? "Saving..." : "Save Meal"}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -1092,15 +1265,17 @@ export default function CameraScreen() {
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>
-              {editingIndex >= 0 ? t("common.edit") : t("common.add")}{" "}
-              Ingredient
+              {editingIndex >= 0 ? "Edit" : "Add"} Ingredient
             </Text>
             <TouchableOpacity onPress={() => setShowEditModal(false)}>
-              <X size={24} color="#6b7280" />
+              <X size={24} color={Colors.light.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalBody}>
+          <ScrollView
+            style={styles.modalBody}
+            showsVerticalScrollIndicator={false}
+          >
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Name *</Text>
               <TextInput
@@ -1124,12 +1299,7 @@ export default function CameraScreen() {
                   value={editingIngredient?.calories?.toString() || "0"}
                   onChangeText={(text) =>
                     setEditingIngredient((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            calories: parseFloat(text) || 0,
-                          }
-                        : null
+                      prev ? { ...prev, calories: parseFloat(text) || 0 } : null
                     )
                   }
                   keyboardType="numeric"
@@ -1144,12 +1314,7 @@ export default function CameraScreen() {
                   value={editingIngredient?.protein?.toString() || "0"}
                   onChangeText={(text) =>
                     setEditingIngredient((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            protein: parseFloat(text) || 0,
-                          }
-                        : null
+                      prev ? { ...prev, protein: parseFloat(text) || 0 } : null
                     )
                   }
                   keyboardType="numeric"
@@ -1166,12 +1331,7 @@ export default function CameraScreen() {
                   value={editingIngredient?.carbs?.toString() || "0"}
                   onChangeText={(text) =>
                     setEditingIngredient((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            carbs: parseFloat(text) || 0,
-                          }
-                        : null
+                      prev ? { ...prev, carbs: parseFloat(text) || 0 } : null
                     )
                   }
                   keyboardType="numeric"
@@ -1186,12 +1346,7 @@ export default function CameraScreen() {
                   value={editingIngredient?.fat?.toString() || "0"}
                   onChangeText={(text) =>
                     setEditingIngredient((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            fat: parseFloat(text) || 0,
-                          }
-                        : null
+                      prev ? { ...prev, fat: parseFloat(text) || 0 } : null
                     )
                   }
                   keyboardType="numeric"
@@ -1208,12 +1363,7 @@ export default function CameraScreen() {
                   value={editingIngredient?.fiber?.toString() || "0"}
                   onChangeText={(text) =>
                     setEditingIngredient((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            fiber: parseFloat(text) || 0,
-                          }
-                        : null
+                      prev ? { ...prev, fiber: parseFloat(text) || 0 } : null
                     )
                   }
                   keyboardType="numeric"
@@ -1228,12 +1378,7 @@ export default function CameraScreen() {
                   value={editingIngredient?.sugar?.toString() || "0"}
                   onChangeText={(text) =>
                     setEditingIngredient((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            sugar: parseFloat(text) || 0,
-                          }
-                        : null
+                      prev ? { ...prev, sugar: parseFloat(text) || 0 } : null
                     )
                   }
                   keyboardType="numeric"
@@ -1249,12 +1394,7 @@ export default function CameraScreen() {
                 value={editingIngredient?.sodium_mg?.toString() || "0"}
                 onChangeText={(text) =>
                   setEditingIngredient((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          sodium_mg: parseFloat(text) || 0,
-                        }
-                      : null
+                    prev ? { ...prev, sodium_mg: parseFloat(text) || 0 } : null
                   )
                 }
                 keyboardType="numeric"
@@ -1268,14 +1408,19 @@ export default function CameraScreen() {
               style={styles.modalCancelButton}
               onPress={() => setShowEditModal(false)}
             >
-              <Text style={styles.modalCancelText}>{t("common.cancel")}</Text>
+              <Text style={styles.modalCancelText}>Cancel</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.modalSaveButton}
               onPress={handleSaveIngredient}
             >
-              <Text style={styles.modalSaveText}>{t("common.save")}</Text>
+              <LinearGradient
+                colors={[Colors.light.primary, Colors.light.primaryDark]}
+                style={styles.modalSaveButtonGradient}
+              >
+                <Text style={styles.modalSaveText}>Save</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
@@ -1292,10 +1437,13 @@ export default function CameraScreen() {
     >
       <View style={styles.modalOverlay}>
         <View style={styles.confirmModalContent}>
-          <AlertTriangle size={48} color="#ef4444" />
-          <Text style={styles.confirmTitle}>{t("camera.delete_analysis")}</Text>
+          <View style={styles.warningIconContainer}>
+            <AlertTriangle size={48} color={Colors.light.error} />
+          </View>
+          <Text style={styles.confirmTitle}>Delete Analysis</Text>
           <Text style={styles.confirmMessage}>
-            {t("camera.delete_confirmation")}
+            Are you sure you want to delete this meal analysis? This action
+            cannot be undone.
           </Text>
 
           <View style={styles.confirmActions}>
@@ -1303,14 +1451,19 @@ export default function CameraScreen() {
               style={styles.confirmCancelButton}
               onPress={() => setShowDeleteConfirm(false)}
             >
-              <Text style={styles.confirmCancelText}>{t("common.cancel")}</Text>
+              <Text style={styles.confirmCancelText}>Cancel</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.confirmDeleteButton}
               onPress={confirmDeleteMeal}
             >
-              <Text style={styles.confirmDeleteText}>{t("common.delete")}</Text>
+              <LinearGradient
+                colors={[Colors.light.error, "#dc2626"]}
+                style={styles.confirmDeleteButtonGradient}
+              >
+                <Text style={styles.confirmDeleteText}>Delete</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
@@ -1324,13 +1477,13 @@ export default function CameraScreen() {
 
     return (
       <View style={styles.errorContainer}>
-        <AlertTriangle size={20} color="#ef4444" />
+        <AlertTriangle size={20} color={Colors.light.error} />
         <Text style={[styles.errorText, isRTL && styles.rtlText]}>{error}</Text>
         <TouchableOpacity
           style={styles.errorDismiss}
           onPress={() => dispatch(clearError())}
         >
-          <X size={16} color="#ef4444" />
+          <X size={16} color={Colors.light.error} />
         </TouchableOpacity>
       </View>
     );
@@ -1347,10 +1500,10 @@ export default function CameraScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={[styles.title, isRTL && styles.rtlText]}>
-            {t("camera.title")}
+            Meal Scanner
           </Text>
           <Text style={[styles.subtitle, isRTL && styles.rtlText]}>
-            {t("camera.description")}
+            Discover nutritional insights with AI-powered food analysis
           </Text>
         </View>
 
@@ -1378,7 +1531,7 @@ export default function CameraScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: Colors.light.background,
   },
   scrollView: {
     flex: 1,
@@ -1392,14 +1545,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: "bold",
-    color: "#1f2937",
+    color: Colors.light.text,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: "#6b7280",
+    color: Colors.light.textSecondary,
     textAlign: "center",
     lineHeight: 24,
   },
@@ -1426,7 +1579,7 @@ const styles = StyleSheet.create({
   errorText: {
     flex: 1,
     fontSize: 14,
-    color: "#dc2626",
+    color: Colors.light.error,
     marginLeft: 12,
   },
   errorDismiss: {
@@ -1436,52 +1589,67 @@ const styles = StyleSheet.create({
   // Image selection styles
   imageSelectionContainer: {
     marginHorizontal: 24,
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: "hidden",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
+    elevation: 6,
+    shadowColor: Colors.light.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
   },
   imageSelectionGradient: {
-    padding: 32,
+    padding: 40,
   },
   imageSelectionHeader: {
     alignItems: "center",
-    marginBottom: 32,
+    marginBottom: 40,
+  },
+  cameraIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+    elevation: 4,
+    shadowColor: Colors.light.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
   imageSelectionTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "bold",
-    color: "#065f46",
-    marginTop: 16,
-    marginBottom: 8,
+    color: Colors.light.primaryDark,
+    marginBottom: 12,
+    textAlign: "center",
   },
   imageSelectionSubtitle: {
     fontSize: 16,
-    color: "#047857",
+    color: Colors.light.primary,
     textAlign: "center",
     lineHeight: 24,
+    paddingHorizontal: 20,
   },
   imageSelectionButtons: {
     gap: 16,
-    marginBottom: 24,
+    marginBottom: 32,
   },
   imageSelectionButton: {
     borderRadius: 16,
     overflow: "hidden",
-    elevation: 2,
-    shadowColor: "#10b981",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    elevation: 4,
+    shadowColor: Colors.light.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
   },
   imageButtonGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
+    paddingVertical: 18,
     paddingHorizontal: 24,
     gap: 12,
   },
@@ -1493,24 +1661,29 @@ const styles = StyleSheet.create({
   tipContainer: {
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
-    borderRadius: 12,
-    padding: 16,
-    gap: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 16,
+    padding: 20,
+    gap: 16,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   tipTextContainer: {
     flex: 1,
   },
   tipTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#065f46",
-    marginBottom: 4,
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.light.primaryDark,
+    marginBottom: 8,
   },
   tipDescription: {
-    fontSize: 13,
-    color: "#047857",
-    lineHeight: 18,
+    fontSize: 14,
+    color: Colors.light.primary,
+    lineHeight: 20,
   },
 
   // Selected image styles
@@ -1520,69 +1693,91 @@ const styles = StyleSheet.create({
   },
   imageWrapper: {
     position: "relative",
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: "hidden",
-    elevation: 8,
+    elevation: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
   },
   selectedImage: {
     width: "100%",
-    height: 240,
-    backgroundColor: "#f3f4f6",
+    height: 280,
+    backgroundColor: Colors.light.surface,
+  },
+  imageGradientOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 60,
   },
   imageOverlay: {
     position: "absolute",
-    top: 12,
-    right: 12,
+    top: 16,
+    right: 16,
     flexDirection: "row",
-    gap: 8,
+    gap: 12,
   },
   overlayButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  deleteOverlayButton: {
+    backgroundColor: "rgba(239, 68, 68, 0.9)",
+  },
+  retakeOverlayButton: {
+    backgroundColor: "rgba(59, 130, 246, 0.9)",
   },
   commentContainer: {
-    marginTop: 16,
+    marginTop: 20,
   },
   commentLabel: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#374151",
-    marginBottom: 8,
+    color: Colors.light.text,
+    marginBottom: 12,
   },
   commentInput: {
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: Colors.light.cardBackground,
+    borderWidth: 2,
+    borderColor: Colors.light.border,
+    borderRadius: 16,
+    padding: 18,
     fontSize: 16,
-    color: "#374151",
-    minHeight: 80,
+    color: Colors.light.text,
+    minHeight: 100,
     textAlignVertical: "top",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
   analyzeButton: {
-    marginTop: 20,
-    borderRadius: 16,
+    marginTop: 24,
+    borderRadius: 20,
     overflow: "hidden",
-    elevation: 4,
-    shadowColor: "#10b981",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    elevation: 8,
+    shadowColor: Colors.light.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
   },
   analyzeButtonGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 18,
+    paddingVertical: 20,
     gap: 12,
   },
   analyzeButtonText: {
@@ -1594,243 +1789,263 @@ const styles = StyleSheet.create({
   // Analysis results styles
   analysisContainer: {
     marginHorizontal: 24,
-    gap: 20,
+    gap: 24,
   },
 
   // Meal header styles
   mealHeaderContainer: {
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: "hidden",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
+    elevation: 8,
+    shadowColor: Colors.light.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
   },
   mealHeaderGradient: {
     padding: 24,
   },
   mealHeaderContent: {
-    gap: 12,
+    gap: 16,
   },
   mealTitleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
   },
+  mealTitleContainer: {
+    flex: 1,
+    marginRight: 16,
+  },
   mealTitle: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#1f2937",
-    flex: 1,
-    marginRight: 12,
+    color: "#ffffff",
+    marginBottom: 6,
   },
-  favoriteButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#f3f4f6",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  favoriteActive: {
-    backgroundColor: "#ef4444",
-  },
-  mealDescription: {
-    fontSize: 16,
-    color: "#6b7280",
-    lineHeight: 22,
-  },
-  mealMetaRow: {
-    flexDirection: "row",
-    gap: 16,
-    flexWrap: "wrap",
-  },
-  metaItem: {
+  confidenceContainer: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
-  metaText: {
+  confidenceText: {
     fontSize: 14,
-    color: "#6b7280",
+    color: "rgba(255,255,255,0.8)",
     fontWeight: "500",
   },
-
-  // Nutrition summary styles
-  nutritionContainer: {
-    borderRadius: 16,
-    overflow: "hidden",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-  },
-  nutritionGradient: {
-    padding: 20,
-  },
-  nutritionHeader: {
-    marginBottom: 16,
-  },
-  nutritionTitleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  nutritionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#374151",
-  },
   qualityBadge: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
   },
   qualityText: {
     fontSize: 12,
     fontWeight: "600",
     color: "#ffffff",
   },
-  chevron: {
-    alignSelf: "center",
+  mealMetaRow: {
+    flexDirection: "row",
+    gap: 20,
+    flexWrap: "wrap",
   },
-  chevronRotated: {
-    transform: [{ rotate: "180deg" }],
+  metaItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  metaText: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.9)",
+    fontWeight: "500",
+  },
+
+  // Nutrition summary styles
+  nutritionContainer: {
+    borderRadius: 20,
+    overflow: "hidden",
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+  },
+  nutritionGradient: {
+    padding: 24,
+  },
+  nutritionHeader: {
+    marginBottom: 20,
+  },
+  nutritionTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: Colors.light.text,
+    marginBottom: 4,
+  },
+  nutritionSubtitle: {
+    fontSize: 14,
+    color: Colors.light.textSecondary,
   },
   nutritionGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
+    marginBottom: 20,
   },
   nutritionCard: {
     flex: 1,
     minWidth: (screenWidth - 96) / 2 - 6,
-    backgroundColor: "#f8fafc",
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: 16,
+    padding: 20,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+  },
+  nutritionIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
   },
   nutritionValue: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: "bold",
-    color: "#10b981",
-    marginTop: 8,
+    color: Colors.light.text,
     marginBottom: 4,
   },
   nutritionLabel: {
     fontSize: 12,
-    color: "#6b7280",
-    fontWeight: "500",
+    color: Colors.light.textSecondary,
+    fontWeight: "600",
     textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  detailsToggle: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 12,
+    gap: 8,
+  },
+  detailsToggleText: {
+    fontSize: 14,
+    color: Colors.light.primary,
+    fontWeight: "600",
+  },
+  chevron: {
+    // Base chevron container style
+  },
+  chevronRotated: {
+    transform: [{ rotate: "180deg" }],
   },
   detailedNutrition: {
     marginTop: 16,
-    paddingTop: 16,
+    paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
-    gap: 8,
+    borderTopColor: Colors.light.border,
+    gap: 12,
   },
   detailRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    paddingVertical: 8,
+  },
+  detailLabelContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   detailLabel: {
     fontSize: 14,
-    color: "#6b7280",
+    color: Colors.light.textSecondary,
     fontWeight: "500",
   },
   detailValue: {
     fontSize: 14,
-    color: "#374151",
+    color: Colors.light.text,
     fontWeight: "600",
   },
-
-  // Rating styles
-  ratingContainer: {
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
-    padding: 20,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-  },
-  ratingGrid: {
-    gap: 16,
-  },
-  ratingItem: {
+  advancedToggle: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    paddingVertical: 12,
+    marginTop: 12,
   },
-  ratingLabel: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#374151",
-    flex: 1,
+  advancedToggleText: {
+    fontSize: 14,
+    color: Colors.light.primary,
+    fontWeight: "600",
   },
-  starsContainer: {
-    flexDirection: "row",
-    gap: 4,
-  },
-  starButton: {
-    padding: 4,
+  advancedNutrition: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
+    gap: 8,
   },
 
   // Ingredients styles
   ingredientsSection: {
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
-    padding: 20,
-    elevation: 2,
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: 20,
+    padding: 24,
+    elevation: 4,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
   },
   ingredientsHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 20,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "600",
-    color: "#374151",
+    fontWeight: "bold",
+    color: Colors.light.text,
   },
   addIngredientButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#ecfdf5",
+    backgroundColor: Colors.light.mint,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#10b981",
+    borderColor: Colors.light.primary,
     gap: 4,
   },
   addIngredientText: {
     fontSize: 14,
-    color: "#10b981",
+    color: Colors.light.primary,
     fontWeight: "600",
   },
   ingredientCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f8fafc",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
+    backgroundColor: Colors.light.surface,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: Colors.light.border,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
   ingredientInfo: {
     flex: 1,
@@ -1838,8 +2053,8 @@ const styles = StyleSheet.create({
   ingredientName: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#374151",
-    marginBottom: 4,
+    color: Colors.light.text,
+    marginBottom: 6,
   },
   ingredientNutrition: {
     flexDirection: "row",
@@ -1847,48 +2062,48 @@ const styles = StyleSheet.create({
   },
   ingredientNutritionText: {
     fontSize: 13,
-    color: "#6b7280",
+    color: Colors.light.textSecondary,
+    fontWeight: "500",
   },
   ingredientActions: {
     flexDirection: "row",
     gap: 8,
   },
   ingredientActionButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: "#ffffff",
-  },
-  noIngredientsText: {
-    fontSize: 14,
-    color: "#9ca3af",
-    textAlign: "center",
-    fontStyle: "italic",
-    paddingVertical: 20,
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: Colors.light.cardBackground,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
 
   // Recommendations styles
   recommendationsSection: {
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
-    padding: 20,
-    elevation: 2,
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: 20,
+    padding: 24,
+    elevation: 4,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
   },
   recommendationCard: {
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: "#f0fdf4",
-    borderRadius: 12,
-    padding: 16,
-    gap: 12,
+    backgroundColor: Colors.light.seafoam,
+    borderRadius: 16,
+    padding: 20,
+    gap: 16,
+    marginTop: 12,
   },
   recommendationText: {
     flex: 1,
     fontSize: 14,
-    color: "#047857",
+    color: Colors.light.primaryDark,
     lineHeight: 20,
   },
 
@@ -1900,10 +2115,11 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     flex: 2,
+    minWidth: 200,
     borderRadius: 16,
     overflow: "hidden",
-    elevation: 4,
-    shadowColor: "#10b981",
+    elevation: 6,
+    shadowColor: Colors.light.success,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -1922,20 +2138,26 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     flex: 1,
+    minWidth: 100,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "#d1d5db",
+    backgroundColor: Colors.light.cardBackground,
+    borderWidth: 2,
+    borderColor: Colors.light.border,
     borderRadius: 16,
     paddingVertical: 16,
-    gap: 8,
+    gap: 6,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
   secondaryButtonText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#6b7280",
+    color: Colors.light.textSecondary,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -1949,15 +2171,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContent: {
-    backgroundColor: "#ffffff",
-    borderRadius: 20,
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: 24,
     width: screenWidth - 48,
-    maxHeight: "80%",
-    elevation: 8,
+    maxHeight: "85%",
+    elevation: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
-    shadowRadius: 16,
+    shadowRadius: 20,
   },
   modalHeader: {
     flexDirection: "row",
@@ -1966,16 +2188,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#f3f4f6",
+    borderBottomColor: Colors.light.border,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#1f2937",
+    color: Colors.light.text,
   },
   modalBody: {
     paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingVertical: 20,
     maxHeight: 400,
   },
   inputGroup: {
@@ -1988,45 +2210,47 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#374151",
+    color: Colors.light.text,
     marginBottom: 8,
   },
   modalInput: {
-    backgroundColor: "#f9fafb",
+    backgroundColor: Colors.light.surface,
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: Colors.light.border,
     borderRadius: 12,
-    padding: 12,
+    padding: 14,
     fontSize: 16,
-    color: "#374151",
+    color: Colors.light.text,
   },
   modalActions: {
     flexDirection: "row",
     paddingHorizontal: 24,
     paddingVertical: 20,
     borderTopWidth: 1,
-    borderTopColor: "#f3f4f6",
+    borderTopColor: Colors.light.border,
     gap: 12,
   },
   modalCancelButton: {
     flex: 1,
-    backgroundColor: "#f9fafb",
+    backgroundColor: Colors.light.surface,
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: Colors.light.border,
     borderRadius: 12,
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: "center",
   },
   modalCancelText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#6b7280",
+    color: Colors.light.textSecondary,
   },
   modalSaveButton: {
     flex: 1,
-    backgroundColor: "#10b981",
     borderRadius: 12,
-    paddingVertical: 12,
+    overflow: "hidden",
+  },
+  modalSaveButtonGradient: {
+    paddingVertical: 14,
     alignItems: "center",
   },
   modalSaveText: {
@@ -2035,33 +2259,58 @@ const styles = StyleSheet.create({
     color: "#ffffff",
   },
 
+  // No ingredients styles
+  noIngredientsContainer: {
+    backgroundColor: Colors.light.surface,
+    borderRadius: 16,
+    padding: 20,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    borderStyle: "dashed",
+  },
+  noIngredientsText: {
+    fontSize: 14,
+    color: Colors.light.textSecondary,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+
   // Confirm modal styles
   confirmModalContent: {
-    backgroundColor: "#ffffff",
-    borderRadius: 20,
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: 24,
     padding: 32,
     alignItems: "center",
     marginHorizontal: 24,
-    elevation: 8,
+    elevation: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
-    shadowRadius: 16,
+    shadowRadius: 20,
+  },
+  warningIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#fef2f2",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
   },
   confirmTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#1f2937",
-    marginTop: 16,
+    color: Colors.light.text,
     marginBottom: 8,
     textAlign: "center",
   },
   confirmMessage: {
     fontSize: 16,
-    color: "#6b7280",
+    color: Colors.light.textSecondary,
     textAlign: "center",
     lineHeight: 24,
-    marginBottom: 24,
+    marginBottom: 32,
   },
   confirmActions: {
     flexDirection: "row",
@@ -2070,23 +2319,25 @@ const styles = StyleSheet.create({
   },
   confirmCancelButton: {
     flex: 1,
-    backgroundColor: "#f9fafb",
+    backgroundColor: Colors.light.surface,
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: Colors.light.border,
     borderRadius: 12,
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: "center",
   },
   confirmCancelText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#6b7280",
+    color: Colors.light.textSecondary,
   },
   confirmDeleteButton: {
     flex: 1,
-    backgroundColor: "#ef4444",
     borderRadius: 12,
-    paddingVertical: 12,
+    overflow: "hidden",
+  },
+  confirmDeleteButtonGradient: {
+    paddingVertical: 14,
     alignItems: "center",
   },
   confirmDeleteText: {
