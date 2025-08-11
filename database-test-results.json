@@ -1,0 +1,51 @@
+{
+  "passed": 8,
+  "failed": 1,
+  "tests": [
+    {
+      "name": "Environment Variables",
+      "status": "PASSED",
+      "error": null
+    },
+    {
+      "name": "Prisma Schema Validation",
+      "status": "PASSED",
+      "error": null
+    },
+    {
+      "name": "Database Connection",
+      "status": "PASSED",
+      "error": null
+    },
+    {
+      "name": "Prisma Client Generation",
+      "status": "FAILED",
+      "error": "Prisma client generation failed"
+    },
+    {
+      "name": "Migration Status",
+      "status": "PASSED",
+      "error": null
+    },
+    {
+      "name": "Schema Introspection",
+      "status": "PASSED",
+      "error": null
+    },
+    {
+      "name": "Model Validation",
+      "status": "PASSED",
+      "error": null
+    },
+    {
+      "name": "Seed Data",
+      "status": "PASSED",
+      "error": null
+    },
+    {
+      "name": "Database Performance",
+      "status": "PASSED",
+      "error": null
+    }
+  ]
+}
