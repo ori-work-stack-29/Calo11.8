@@ -1,5 +1,4 @@
-import React, { useRef, useEffect, useMemo, useCallback } from "react";
-import { ViewStyle, TextStyle } from "react-native";
+import React, { useRef, useEffect, useMemo } from "react";
 import { Tabs } from "expo-router";
 import {
   ScrollView,
@@ -11,705 +10,376 @@ import {
   TouchableOpacity,
   Text,
 } from "react-native";
-import {
-  Home,
-  History,
-  Camera,
-  TrendingUp,
-  User,
-  Calendar,
-  Watch,
-  UtensilsCrossed,
-  Bot,
-  Scan,
-  ClipboardList,
-  BarChart3,
-} from "lucide-react-native";
+
+// Import icons from @expo/vector-icons instead of lucide-react-native
+import { Ionicons } from "@expo/vector-icons";
+
+// Import LinearGradient - make sure expo-linear-gradient is installed
 import { LinearGradient } from "expo-linear-gradient";
-import {
-  useSafeAreaInsets,
-  SafeAreaView,
-} from "react-native-safe-area-context";
-import { useTheme } from "@/src/context/ThemeContext";
-import { useTranslation } from "react-i18next";
-import { useLanguage } from "@/src/i18n/context/LanguageContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const SCREEN_WIDTH = Dimensions.get("window").width;
-const MAX_ICONS_VISIBLE = 5;
-const TAB_LABEL_FONT_SIZE = 11;
-const TAB_ICON_SIZE = 22;
-const ACTIVE_TAB_SCALE = 1.08;
-const CAMERA_BUTTON_SIZE = 56;
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const TAB_HEIGHT = 60;
+const ICON_SIZE = 22;
 
-// Icon mapping for your tabs with better Lucide icons
-const iconMap = {
-  index: Home,
-  history: History,
-  camera: Camera,
-  statistics: TrendingUp,
-  calendar: Calendar,
-  devices: Watch,
-  "recommended-menus": UtensilsCrossed,
-  "ai-chat": Bot,
-  "food-scanner": Scan,
-  questionnaire: ClipboardList,
-  profile: User,
+const theme = {
+  colors: {
+    primary: "#10B981",
+    primaryLight: "#34D399",
+    background: "#FFFFFF",
+    backgroundSecondary: "#F8FAFC",
+    textPrimary: "#1F2937",
+    textSecondary: "#6B7280",
+    border: "#E5E7EB",
+    shadow: "#000000",
+  },
+};
+
+// Define valid route names
+type RouteNames = "index" | "history" | "camera" | "statistics" | "profile";
+
+// Icon mapping using Ionicons (which comes with Expo by default)
+const iconMap: Record<RouteNames, keyof typeof Ionicons.glyphMap> = {
+  index: "home-outline",
+  history: "time-outline",
+  camera: "camera-outline",
+  statistics: "trending-up-outline",
+  profile: "person-outline",
+};
+
+const activeIconMap: Record<RouteNames, keyof typeof Ionicons.glyphMap> = {
+  index: "home",
+  history: "time",
+  camera: "camera",
+  statistics: "trending-up",
+  profile: "person",
+};
+
+const tabLabels: Record<RouteNames, string> = {
+  index: "Home",
+  history: "History",
+  camera: "Camera",
+  statistics: "Stats",
+  profile: "Profile",
 };
 
 interface CustomTabBarProps {
-  state: any;
+  state: {
+    index: number;
+    routes: Array<{ key: string; name: string }>;
+  };
   descriptors: any;
-  navigation: any;
+  navigation: {
+    emit: (options: {
+      type: string;
+      target: string;
+      canPreventDefault: boolean;
+    }) => { defaultPrevented: boolean };
+    navigate: (name: string) => void;
+  };
 }
 
-export function ScrollableTabBar({
+interface TabPosition {
+  x: number;
+  width: number;
+  centerX: number;
+}
+
+interface TabCalculations {
+  activeIndex: number;
+  tabPositions: TabPosition[];
+  needsScrolling: boolean;
+  totalWidth: number;
+}
+
+function ScrollableTabBar({
   state,
   descriptors,
   navigation,
 }: CustomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { colors, isDark } = useTheme();
-  const { t } = useTranslation();
-  const { isRTL } = useLanguage();
-
   const scrollViewRef = useRef<ScrollView>(null);
-  const indicatorTranslateX = useRef(new Animated.Value(0)).current;
-  const iconScales = useRef(
-    state.routes.map(() => new Animated.Value(1))
-  ).current;
-  const iconTranslateY = useRef(
-    state.routes.map(() => new Animated.Value(0))
-  ).current;
-  const cameraButtonScale = useRef(new Animated.Value(1)).current;
+  const indicatorPosition = useRef(new Animated.Value(0)).current;
+  const indicatorWidth = useRef(new Animated.Value(80)).current;
 
-  // Track scroll position
-  const scrollX = useRef(new Animated.Value(0)).current;
-  const currentScrollX = useRef(0);
-
-  // Calculate proper tab bar height with safe area
-  const baseTabHeight = 60; // Base height for tab content
-  const totalTabBarHeight = baseTabHeight; // SafeAreaView handles the bottom inset
-
-  // Create dynamic styles based on theme
-  const dynamicStyles = useMemo(
-    () => createDynamicStyles(colors, isDark),
-    [colors, isDark]
-  );
-
-  // Memoize calculations with enhanced scrolling logic
-  const tabCalculations = useMemo(() => {
+  // Simplified tab calculations
+  const tabCalculations: TabCalculations = useMemo(() => {
     const activeIndex = state.index;
-    const routesCount = state.routes.length;
+    const routeCount = state.routes.length;
 
-    // Always use consistent tab width calculation
-    const tabItemWidth =
-      SCREEN_WIDTH / Math.min(routesCount, MAX_ICONS_VISIBLE);
-    const totalContentWidth = routesCount * tabItemWidth;
+    // Responsive tab sizing
+    const availableWidth = SCREEN_WIDTH - 32; // Account for padding
+    const minTabWidth = 60;
+    const maxTabWidth = 100;
+    const activeTabExtra = 40; // Extra width for active tab with text
 
-    // Determine if scrolling is needed
-    const shouldScroll = totalContentWidth > SCREEN_WIDTH;
+    // Calculate if we need scrolling
+    const totalMinWidth =
+      (routeCount - 1) * minTabWidth + (minTabWidth + activeTabExtra);
+    const needsScrolling = totalMinWidth > availableWidth;
 
-    // Calculate actual indicator position based on active tab
-    const indicatorTargetX =
-      activeIndex * tabItemWidth + tabItemWidth / 2 - (tabItemWidth * 0.8) / 2;
+    // Calculate tab widths and positions
+    let currentX = 16; // Starting padding
+    const tabPositions: TabPosition[] = state.routes.map((route, index) => {
+      const isActive = index === activeIndex;
+      const baseWidth = needsScrolling
+        ? minTabWidth
+        : Math.min(maxTabWidth, availableWidth / routeCount);
+      const width = isActive ? baseWidth + activeTabExtra : baseWidth;
 
-    // Enhanced scroll offset calculation
-    let scrollOffset = 0;
-    if (shouldScroll) {
-      const maxScrollX = totalContentWidth - SCREEN_WIDTH;
-      const targetScrollX =
-        activeIndex * tabItemWidth - (SCREEN_WIDTH / 2 - tabItemWidth / 2);
-      scrollOffset = Math.max(0, Math.min(maxScrollX, targetScrollX));
-    }
+      const position: TabPosition = {
+        x: currentX,
+        width,
+        centerX: currentX + width / 2,
+      };
 
-    // Calculate camera button position
-    const cameraIndex = state.routes.findIndex(
-      (route: any) => route.name === "camera"
-    );
-    const cameraButtonX =
-      cameraIndex >= 0
-        ? cameraIndex * tabItemWidth + tabItemWidth / 2 - CAMERA_BUTTON_SIZE / 2
-        : 0;
+      currentX += width + 8; // 8px gap between tabs
+      return position;
+    });
 
     return {
       activeIndex,
-      routesCount,
-      tabItemWidth,
-      totalContentWidth,
-      indicatorTargetX,
-      scrollOffset,
-      shouldScroll,
-      cameraButtonX,
-      cameraIndex,
-      maxScrollX: totalContentWidth - SCREEN_WIDTH,
+      tabPositions,
+      needsScrolling,
+      totalWidth: currentX - 8 + 16, // Remove last gap, add end padding
     };
   }, [state.index, state.routes.length]);
 
-  // Enhanced animation function with better scrolling
-  const animateToTab = useCallback(
-    (calculations: {
-      activeIndex: number;
-      indicatorTargetX: number;
-      scrollOffset: number;
-      shouldScroll: boolean;
-      cameraIndex: number;
-      maxScrollX: number;
-    }) => {
-      const {
-        activeIndex,
-        indicatorTargetX,
-        scrollOffset,
-        shouldScroll,
-        cameraIndex,
-        maxScrollX,
-      } = calculations;
+  // Simplified animation
+  const animateIndicator = () => {
+    const { tabPositions, activeIndex } = tabCalculations;
+    const activeTab = tabPositions[activeIndex];
 
-      // Animate indicator with bounds checking
-      const clampedIndicatorX = Math.max(
-        0,
-        Math.min(indicatorTargetX, maxScrollX + SCREEN_WIDTH)
-      );
-      Animated.spring(indicatorTranslateX, {
-        toValue: clampedIndicatorX,
-        useNativeDriver: true,
+    if (!activeTab) return;
+
+    Animated.parallel([
+      Animated.spring(indicatorPosition, {
+        toValue: activeTab.x,
+        useNativeDriver: false,
         tension: 300,
-        friction: 25,
-      }).start();
-
-      // Animate icons (excluding camera)
-      iconScales.forEach(
-        (scale: Animated.Value | Animated.ValueXY, index: number) => {
-          if (index !== cameraIndex) {
-            Animated.spring(scale, {
-              toValue: index === activeIndex ? ACTIVE_TAB_SCALE : 1,
-              useNativeDriver: true,
-              tension: 300,
-              friction: 20,
-            }).start();
-          }
-        }
-      );
-
-      // Animate camera button
-      Animated.spring(cameraButtonScale, {
-        toValue: activeIndex === cameraIndex ? 1.1 : 1,
-        useNativeDriver: true,
+        friction: 30,
+      }),
+      Animated.spring(indicatorWidth, {
+        toValue: activeTab.width,
+        useNativeDriver: false,
         tension: 300,
-        friction: 20,
-      }).start();
+        friction: 30,
+      }),
+    ]).start();
 
-      // Animate icon positions (excluding camera)
-      iconTranslateY.forEach(
-        (translateY: Animated.Value | Animated.ValueXY, index: number) => {
-          if (index !== cameraIndex) {
-            Animated.spring(translateY, {
-              toValue: index === activeIndex ? -3 : 0,
-              useNativeDriver: true,
-              tension: 300,
-              friction: 20,
-            }).start();
-          }
-        }
-      );
-
-      // Enhanced scrolling with bounds checking
-      if (shouldScroll) {
-        const clampedScrollOffset = Math.max(
-          0,
-          Math.min(scrollOffset, maxScrollX)
-        );
+    // Auto-scroll to keep active tab visible
+    if (tabCalculations.needsScrolling && scrollViewRef.current) {
+      const scrollToX = Math.max(0, activeTab.centerX - SCREEN_WIDTH / 2);
+      setTimeout(() => {
         scrollViewRef.current?.scrollTo({
-          x: clampedScrollOffset,
+          x: scrollToX,
           animated: true,
         });
-        currentScrollX.current = clampedScrollOffset;
-      } else {
-        scrollViewRef.current?.scrollTo({ x: 0, animated: false });
-        currentScrollX.current = 0;
-      }
-    },
-    [indicatorTranslateX, iconScales, iconTranslateY, cameraButtonScale]
-  );
+      }, 100);
+    }
+  };
 
   useEffect(() => {
-    animateToTab(tabCalculations);
-  }, [tabCalculations, animateToTab]);
+    animateIndicator();
+  }, [state.index, tabCalculations]); // Add tabCalculations to dependencies
 
-  // Enhanced scroll event handler with bounds checking
-  const handleScroll = useCallback(
-    (event: any) => {
-      const offsetX = event.nativeEvent.contentOffset.x;
-      const clampedOffsetX = Math.max(
-        0,
-        Math.min(offsetX, tabCalculations.maxScrollX || 0)
-      );
+  // Initialize indicator position
+  useEffect(() => {
+    const { tabPositions, activeIndex } = tabCalculations;
+    const activeTab = tabPositions[activeIndex];
 
-      scrollX.setValue(clampedOffsetX);
-      currentScrollX.current = clampedOffsetX;
-    },
-    [tabCalculations.maxScrollX]
-  );
-
-  // Handle momentum scroll end to ensure proper positioning
-  const handleScrollEnd = useCallback(() => {
-    // Ensure we're within bounds
-    if (tabCalculations.shouldScroll && scrollViewRef.current) {
-      const maxScroll = Math.max(
-        0,
-        tabCalculations.totalContentWidth - SCREEN_WIDTH
-      );
-      if (currentScrollX.current > maxScroll) {
-        scrollViewRef.current.scrollTo({
-          x: maxScroll,
-          animated: true,
-        });
-      } else if (currentScrollX.current < 0) {
-        scrollViewRef.current.scrollTo({
-          x: 0,
-          animated: true,
-        });
-      }
+    if (activeTab) {
+      indicatorPosition.setValue(activeTab.x);
+      indicatorWidth.setValue(activeTab.width);
     }
-  }, [tabCalculations.shouldScroll, tabCalculations.totalContentWidth]);
+  }, []); // Empty dependency array for initialization
 
-  // Render floating camera button with enhanced positioning
-  const renderFloatingCameraButton = () => {
-    const cameraRoute = state.routes.find(
-      (route: any) => route.name === "camera"
-    );
-    if (!cameraRoute) return null;
+  const renderTab = (route: { key: string; name: string }, index: number) => {
+    const isFocused = state.index === index;
+    const routeName = route.name as RouteNames;
+    const label = tabLabels[routeName] || route.name;
+    const iconName = isFocused ? activeIconMap[routeName] : iconMap[routeName];
+    const fallbackIcon = isFocused ? "home" : "home-outline";
+    const tabPosition = tabCalculations.tabPositions[index];
 
-    const cameraIndex = state.routes.findIndex(
-      (route: any) => route.name === "camera"
-    );
-    const { options } = descriptors[cameraRoute.key];
-    const isFocused = state.index === cameraIndex;
-    const isDisabled = options.tabBarButton === null;
+    if (!tabPosition) return null;
 
     const onPress = () => {
-      if (isDisabled) return;
-
       const event = navigation.emit({
         type: "tabPress",
-        target: cameraRoute.key,
+        target: route.key,
         canPreventDefault: true,
       });
 
       if (!isFocused && !event.defaultPrevented) {
-        navigation.navigate(cameraRoute.name);
+        navigation.navigate(route.name);
       }
     };
 
-    const onLongPress = () => {
-      if (isDisabled) return;
-      navigation.emit({
-        type: "tabLongPress",
-        target: cameraRoute.key,
-      });
-    };
-
-    // Enhanced camera button positioning with bounds checking
-    const cameraButtonAnimatedX = tabCalculations.shouldScroll
-      ? Animated.add(
-          new Animated.Value(tabCalculations.cameraButtonX),
-          Animated.multiply(scrollX, -1)
-        )
-      : new Animated.Value(tabCalculations.cameraButtonX);
-
     return (
-      <Animated.View
+      <TouchableOpacity
+        key={route.key}
+        accessibilityRole="tab"
+        accessibilityState={{ selected: isFocused }}
+        onPress={onPress}
         style={[
-          dynamicStyles.floatingCameraButton,
+          styles.tab,
           {
-            transform: [
-              { translateX: cameraButtonAnimatedX },
-              { scale: cameraButtonScale },
-            ],
+            width: tabPosition.width,
           },
         ]}
+        activeOpacity={0.7}
       >
-        <TouchableOpacity
-          accessibilityRole="tab"
-          accessibilityState={{
-            selected: isFocused,
-            disabled: isDisabled,
-          }}
-          onPress={onPress}
-          onLongPress={onLongPress}
-          style={[
-            dynamicStyles.cameraButton,
-            {
-              opacity: isDisabled ? 0.4 : 1,
-            },
-          ]}
-          activeOpacity={0.8}
-          disabled={isDisabled}
-        >
-          <LinearGradient
-            colors={dynamicStyles.cameraGradientColors}
-            style={[
-              dynamicStyles.cameraGradient,
-              { borderColor: colors.background },
-            ]}
-          >
-            <Camera size={28} color="#FFFFFF" strokeWidth={2} />
-          </LinearGradient>
-        </TouchableOpacity>
+        <View style={styles.tabContent}>
+          <Ionicons
+            name={iconName || fallbackIcon}
+            size={ICON_SIZE}
+            color={
+              isFocused ? theme.colors.primary : theme.colors.textSecondary
+            }
+          />
+          {isFocused && (
+            <Text style={styles.tabText} numberOfLines={1}>
+              {label}
+            </Text>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
-        <Text
-          style={[
-            dynamicStyles.cameraLabel,
-            {
-              color: isFocused ? colors.emerald600 : colors.textSecondary,
-              fontWeight: isFocused ? "700" : "500",
-            },
+  const TabContent = () => {
+    if (tabCalculations.needsScrolling) {
+      return (
+        <ScrollView
+          ref={scrollViewRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { width: tabCalculations.totalWidth },
           ]}
-          numberOfLines={1}
-          allowFontScaling={false}
+          bounces={false}
+          decelerationRate="fast"
         >
-          {t("tabs.camera")}
-        </Text>
-      </Animated.View>
+          {state.routes.map(renderTab)}
+        </ScrollView>
+      );
+    }
+
+    return (
+      <View style={styles.fixedTabsContainer}>
+        {state.routes.map(renderTab)}
+      </View>
     );
   };
 
   return (
-    <SafeAreaView edges={["bottom"]} style={[dynamicStyles.safeAreaWrapper]}>
-      <View style={dynamicStyles.wrapper}>
-        <View
+    <View
+      style={[styles.container, { paddingBottom: Math.max(insets.bottom, 8) }]}
+    >
+      <View style={styles.tabBar}>
+        {/* Animated indicator */}
+        <Animated.View
           style={[
-            dynamicStyles.container,
+            styles.indicator,
             {
-              paddingBottom: Platform.OS === "ios" ? 4 : 8,
+              left: indicatorPosition,
+              width: indicatorWidth,
             },
           ]}
         >
-          {/* Active tab indicator - positioned relative to scroll content with bounds checking */}
-          <Animated.View
-            style={[
-              dynamicStyles.indicator,
-              {
-                width: tabCalculations.tabItemWidth * 0.8,
-                transform: [
-                  {
-                    translateX: tabCalculations.shouldScroll
-                      ? Animated.add(
-                          indicatorTranslateX,
-                          Animated.multiply(scrollX, -1)
-                        )
-                      : indicatorTranslateX,
-                  },
-                ],
-              },
-            ]}
+          <LinearGradient
+            colors={[theme.colors.primary, theme.colors.primaryLight]}
+            style={styles.indicatorGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
           />
+        </Animated.View>
 
-          <ScrollView
-            ref={scrollViewRef}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={[
-              dynamicStyles.scrollViewContent,
-              {
-                width: tabCalculations.totalContentWidth,
-                minWidth: SCREEN_WIDTH,
-              },
-              !tabCalculations.shouldScroll && {
-                flexGrow: 1,
-                justifyContent: "space-around",
-              },
-            ]}
-            decelerationRate="fast"
-            bounces={true}
-            bouncesZoom={false}
-            alwaysBounceHorizontal={tabCalculations.shouldScroll}
-            onScroll={handleScroll}
-            onMomentumScrollEnd={handleScrollEnd}
-            onScrollEndDrag={handleScrollEnd}
-            scrollEventThrottle={16}
-            style={dynamicStyles.scrollView}
-          >
-            {state.routes.map((route: any, index: number) => {
-              const { options } = descriptors[route.key];
-
-              const label =
-                options.tabBarLabel !== undefined
-                  ? options.tabBarLabel
-                  : options.title !== undefined
-                  ? options.title
-                  : route.name;
-
-              const isFocused = state.index === index;
-              const isDisabled = options.tabBarButton === null;
-              const IconComponent =
-                iconMap[route.name as keyof typeof iconMap] || Home;
-
-              const onPress = () => {
-                if (isDisabled) return;
-
-                const event = navigation.emit({
-                  type: "tabPress",
-                  target: route.key,
-                  canPreventDefault: true,
-                });
-
-                if (!isFocused && !event.defaultPrevented) {
-                  navigation.navigate(route.name);
-                }
-              };
-
-              const onLongPress = () => {
-                if (isDisabled) return;
-                navigation.emit({
-                  type: "tabLongPress",
-                  target: route.key,
-                });
-              };
-
-              // Skip rendering camera tab here since it's rendered as floating button
-              if (route.name === "camera") {
-                return (
-                  <View
-                    key={route.key}
-                    style={[
-                      dynamicStyles.tabButton,
-                      dynamicStyles.cameraPlaceholder,
-                      {
-                        width: tabCalculations.tabItemWidth,
-                      },
-                    ]}
-                  />
-                );
-              }
-
-              return (
-                <TouchableOpacity
-                  key={route.key}
-                  accessibilityRole="tab"
-                  accessibilityState={{
-                    selected: isFocused,
-                    disabled: isDisabled,
-                  }}
-                  onPress={onPress}
-                  onLongPress={onLongPress}
-                  style={[
-                    dynamicStyles.tabButton,
-                    {
-                      width: tabCalculations.tabItemWidth,
-                      opacity: isDisabled ? 0.4 : 1,
-                    },
-                  ]}
-                  activeOpacity={0.7}
-                  disabled={isDisabled}
-                >
-                  <Animated.View
-                    style={[
-                      dynamicStyles.iconContainer,
-                      {
-                        transform: [
-                          { scale: iconScales[index] },
-                          { translateY: iconTranslateY[index] },
-                        ],
-                      },
-                    ]}
-                  >
-                    <IconComponent
-                      color={
-                        isFocused ? colors.emerald600 : colors.textSecondary
-                      }
-                      size={TAB_ICON_SIZE}
-                      strokeWidth={isFocused ? 2.2 : 1.8}
-                    />
-                  </Animated.View>
-
-                  <Animated.View
-                    style={[
-                      dynamicStyles.labelContainer,
-                      {
-                        opacity: isFocused ? 1 : 0.7,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        dynamicStyles.label,
-                        {
-                          color: isFocused
-                            ? colors.emerald600
-                            : colors.textSecondary,
-                          fontWeight: isFocused ? "700" : "500",
-                        },
-                      ]}
-                      numberOfLines={1}
-                      allowFontScaling={false}
-                    >
-                      {label}
-                    </Text>
-                  </Animated.View>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          {/* Floating Camera Button */}
-          {renderFloatingCameraButton()}
-        </View>
+        {/* Tab content */}
+        <TabContent />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
-// Define proper types for your styles
-interface DynamicStyles {
-  safeAreaWrapper: ViewStyle;
-  wrapper: ViewStyle;
-  container: ViewStyle;
-  indicator: ViewStyle;
-  scrollView: ViewStyle;
-  scrollViewContent: ViewStyle;
-  tabButton: ViewStyle;
-  cameraPlaceholder: ViewStyle;
-  iconContainer: ViewStyle;
-  labelContainer: ViewStyle;
-  label: TextStyle;
-  floatingCameraButton: ViewStyle;
-  cameraButton: ViewStyle;
-  cameraGradient: ViewStyle;
-  cameraGradientColors: string[];
-  cameraLabel: TextStyle;
-}
-
-// Dynamic styles function that adapts to theme
-const createDynamicStyles = (colors: any, isDark: boolean): DynamicStyles => {
-  const emeraldPrimary = isDark ? colors.emerald500 : colors.emerald600;
-  const emeraldGradient = isDark
-    ? [colors.emerald600, colors.emerald500]
-    : [colors.emerald600, colors.emerald500];
-
-  const styles = StyleSheet.create({
-    safeAreaWrapper: {
-      backgroundColor: colors.background,
-      position: "relative",
-      bottom: 0,
-      left: 0,
-      right: 0,
-    } as ViewStyle,
-    wrapper: {
-      backgroundColor: colors.background,
-    } as ViewStyle,
-    container: {
-      backgroundColor: colors.background,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-      shadowColor: colors.shadow,
-      shadowOffset: {
-        width: 0,
-        height: -4,
+const styles = StyleSheet.create({
+  container: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    backgroundColor: "transparent",
+  },
+  tabBar: {
+    height: TAB_HEIGHT,
+    borderRadius: 30,
+    backgroundColor: theme.colors.background,
+    shadowColor: theme.colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    position: "relative",
+    overflow: "hidden",
+    ...Platform.select({
+      ios: {
+        backgroundColor: "rgba(255, 255, 255, 0.95)",
       },
-      shadowOpacity: isDark ? 0.3 : 0.08,
-      shadowRadius: 12,
-      elevation: 12,
-      paddingTop: 6,
-      paddingHorizontal: 0,
-      minHeight: 60,
-    } as ViewStyle,
-    indicator: {
-      position: "absolute",
-      top: 0,
-      height: 3,
-      backgroundColor: emeraldPrimary,
-      borderRadius: 2,
-      zIndex: 1,
-    } as ViewStyle,
-    scrollView: {
-      flex: 1,
-    } as ViewStyle,
-    scrollViewContent: {
-      flexDirection: "row",
-      alignItems: "center",
-      minHeight: 52,
-      paddingHorizontal: 0,
-    } as ViewStyle,
-    tabButton: {
-      flexDirection: "column",
-      justifyContent: "center",
-      alignItems: "center",
-      paddingVertical: 6,
-      paddingHorizontal: 8,
-      zIndex: 2,
-      minHeight: 52,
-    } as ViewStyle,
-    cameraPlaceholder: {
-      opacity: 0,
-    } as ViewStyle,
-    iconContainer: {
-      marginBottom: 4,
-      justifyContent: "center",
-      alignItems: "center",
-      height: 28,
-      width: 28,
-    } as ViewStyle,
-    labelContainer: {
-      justifyContent: "center",
-      alignItems: "center",
-      minHeight: 16,
-    } as ViewStyle,
-    label: {
-      fontSize: TAB_LABEL_FONT_SIZE,
-      textAlign: "center",
-      letterSpacing: 0.2,
-      fontFamily: "Rubik-Medium",
-      color: colors.text,
-    } as TextStyle,
-    floatingCameraButton: {
-      position: "absolute",
-      top: -32,
-      left: 0,
-      width: CAMERA_BUTTON_SIZE,
-      height: CAMERA_BUTTON_SIZE + 35,
-      justifyContent: "flex-start",
-      alignItems: "center",
-      zIndex: 10,
-    } as ViewStyle,
-    cameraButton: {
-      width: CAMERA_BUTTON_SIZE,
-      height: CAMERA_BUTTON_SIZE,
-      borderRadius: CAMERA_BUTTON_SIZE / 2,
-      justifyContent: "center",
-      alignItems: "center",
-      marginBottom: 4,
-    } as ViewStyle,
-    cameraGradient: {
-      width: CAMERA_BUTTON_SIZE,
-      height: CAMERA_BUTTON_SIZE,
-      borderRadius: CAMERA_BUTTON_SIZE / 2,
-      justifyContent: "center",
-      alignItems: "center",
-      elevation: 12,
-      shadowColor: emeraldPrimary,
-      shadowOffset: {
-        width: 0,
-        height: 6,
-      },
-      shadowOpacity: 0.4,
-      shadowRadius: 12,
-      borderWidth: 4,
-      borderColor: colors.background,
-    } as ViewStyle,
-    cameraLabel: {
-      fontSize: TAB_LABEL_FONT_SIZE,
-      textAlign: "center",
-      letterSpacing: 0.2,
-      fontFamily: "Rubik-Medium",
-      marginTop: 2,
-    } as TextStyle,
-  });
-
-  return {
-    ...styles,
-    cameraGradientColors: emeraldGradient,
-  };
-};
+    }),
+  },
+  indicator: {
+    position: "absolute",
+    top: 6,
+    height: TAB_HEIGHT - 12,
+    borderRadius: (TAB_HEIGHT - 12) / 2,
+    zIndex: 1,
+  },
+  indicatorGradient: {
+    flex: 1,
+    borderRadius: (TAB_HEIGHT - 12) / 2,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  scrollContent: {
+    alignItems: "center",
+    paddingVertical: 6,
+    minHeight: TAB_HEIGHT - 12,
+  },
+  fixedTabsContainer: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    gap: 8,
+  },
+  tab: {
+    height: TAB_HEIGHT - 12,
+    borderRadius: (TAB_HEIGHT - 12) / 2,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 2,
+  },
+  tabContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    height: "100%",
+  },
+  tabText: {
+    color: theme.colors.primary,
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 0.2,
+  },
+});
 
 export default function TabLayout() {
   return (
@@ -717,7 +387,8 @@ export default function TabLayout() {
       tabBar={(props) => <ScrollableTabBar {...props} />}
       screenOptions={{
         headerShown: false,
+        tabBarStyle: { display: "none" },
       }}
-    ></Tabs>
+    />
   );
 }
