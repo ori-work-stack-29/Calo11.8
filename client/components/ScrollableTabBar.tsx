@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo } from "react";
+import React, { useRef, useEffect, useMemo, useCallback } from "react";
 import { Tabs } from "expo-router";
 import {
   ScrollView,
@@ -10,11 +10,7 @@ import {
   TouchableOpacity,
   Text,
 } from "react-native";
-
-// Import icons from @expo/vector-icons instead of lucide-react-native
 import { Ionicons } from "@expo/vector-icons";
-
-// Import LinearGradient - make sure expo-linear-gradient is installed
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -38,7 +34,7 @@ const theme = {
 // Define valid route names
 type RouteNames = "index" | "history" | "camera" | "statistics" | "profile";
 
-// Icon mapping using Ionicons (which comes with Expo by default)
+// Icon mapping using Ionicons
 const iconMap: Record<RouteNames, keyof typeof Ionicons.glyphMap> = {
   index: "home-outline",
   history: "time-outline",
@@ -101,17 +97,18 @@ function ScrollableTabBar({
   const scrollViewRef = useRef<ScrollView>(null);
   const indicatorPosition = useRef(new Animated.Value(0)).current;
   const indicatorWidth = useRef(new Animated.Value(80)).current;
+  const isInitialized = useRef(false);
 
-  // Simplified tab calculations
+  // Memoize tab calculations with stable dependencies
   const tabCalculations: TabCalculations = useMemo(() => {
     const activeIndex = state.index;
     const routeCount = state.routes.length;
 
     // Responsive tab sizing
     const availableWidth = SCREEN_WIDTH - 32; // Account for padding
-    const minTabWidth = 60;
-    const maxTabWidth = 100;
-    const activeTabExtra = 40; // Extra width for active tab with text
+    const minTabWidth = 70;
+    const maxTabWidth = 120;
+    const activeTabExtra = 50; // Extra width for active tab with text
 
     // Calculate if we need scrolling
     const totalMinWidth =
@@ -143,31 +140,33 @@ function ScrollableTabBar({
       needsScrolling,
       totalWidth: currentX - 8 + 16, // Remove last gap, add end padding
     };
-  }, [state.index, state.routes.length]);
+  }, [state.index, state.routes.length]); // Only depend on these stable values
 
-  // Simplified animation
-  const animateIndicator = () => {
+  // Animate indicator with smooth transitions
+  const animateIndicator = useCallback(() => {
     const { tabPositions, activeIndex } = tabCalculations;
     const activeTab = tabPositions[activeIndex];
 
     if (!activeTab) return;
 
+    const animationConfig = {
+      useNativeDriver: false,
+      tension: 200,
+      friction: 25,
+    };
+
     Animated.parallel([
       Animated.spring(indicatorPosition, {
         toValue: activeTab.x,
-        useNativeDriver: false,
-        tension: 300,
-        friction: 30,
+        ...animationConfig,
       }),
       Animated.spring(indicatorWidth, {
         toValue: activeTab.width,
-        useNativeDriver: false,
-        tension: 300,
-        friction: 30,
+        ...animationConfig,
       }),
     ]).start();
 
-    // Auto-scroll to keep active tab visible
+    // Auto-scroll to keep active tab visible with smooth animation
     if (tabCalculations.needsScrolling && scrollViewRef.current) {
       const scrollToX = Math.max(0, activeTab.centerX - SCREEN_WIDTH / 2);
       setTimeout(() => {
@@ -175,26 +174,32 @@ function ScrollableTabBar({
           x: scrollToX,
           animated: true,
         });
-      }, 100);
+      }, 50);
     }
-  };
+  }, [tabCalculations, indicatorPosition, indicatorWidth]);
 
+  // Initialize indicator position only once
   useEffect(() => {
-    animateIndicator();
-  }, [state.index, tabCalculations]); // Add tabCalculations to dependencies
+    if (!isInitialized.current) {
+      const { tabPositions, activeIndex } = tabCalculations;
+      const activeTab = tabPositions[activeIndex];
 
-  // Initialize indicator position
-  useEffect(() => {
-    const { tabPositions, activeIndex } = tabCalculations;
-    const activeTab = tabPositions[activeIndex];
-
-    if (activeTab) {
-      indicatorPosition.setValue(activeTab.x);
-      indicatorWidth.setValue(activeTab.width);
+      if (activeTab) {
+        indicatorPosition.setValue(activeTab.x);
+        indicatorWidth.setValue(activeTab.width);
+        isInitialized.current = true;
+      }
     }
-  }, []); // Empty dependency array for initialization
+  }, [tabCalculations, indicatorPosition, indicatorWidth]);
 
-  const renderTab = (route: { key: string; name: string }, index: number) => {
+  // Animate when active tab changes
+  useEffect(() => {
+    if (isInitialized.current) {
+      animateIndicator();
+    }
+  }, [state.index, animateIndicator]);
+
+  const renderTab = useCallback((route: { key: string; name: string }, index: number) => {
     const isFocused = state.index === index;
     const routeName = route.name as RouteNames;
     const label = tabLabels[routeName] || route.name;
@@ -221,6 +226,7 @@ function ScrollableTabBar({
         key={route.key}
         accessibilityRole="tab"
         accessibilityState={{ selected: isFocused }}
+        accessibilityLabel={`${label} tab`}
         onPress={onPress}
         style={[
           styles.tab,
@@ -239,16 +245,24 @@ function ScrollableTabBar({
             }
           />
           {isFocused && (
-            <Text style={styles.tabText} numberOfLines={1}>
+            <Animated.Text 
+              style={[
+                styles.tabText,
+                {
+                  opacity: isFocused ? 1 : 0,
+                }
+              ]} 
+              numberOfLines={1}
+            >
               {label}
-            </Text>
+            </Animated.Text>
           )}
         </View>
       </TouchableOpacity>
     );
-  };
+  }, [state.index, tabCalculations, navigation]);
 
-  const TabContent = () => {
+  const TabContent = useCallback(() => {
     if (tabCalculations.needsScrolling) {
       return (
         <ScrollView
@@ -261,6 +275,7 @@ function ScrollableTabBar({
           ]}
           bounces={false}
           decelerationRate="fast"
+          scrollEventThrottle={16}
         >
           {state.routes.map(renderTab)}
         </ScrollView>
@@ -272,7 +287,7 @@ function ScrollableTabBar({
         {state.routes.map(renderTab)}
       </View>
     );
-  };
+  }, [tabCalculations, state.routes, renderTab]);
 
   return (
     <View
@@ -335,15 +350,15 @@ const styles = StyleSheet.create({
     height: TAB_HEIGHT - 12,
     borderRadius: (TAB_HEIGHT - 12) / 2,
     zIndex: 1,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   indicatorGradient: {
     flex: 1,
     borderRadius: (TAB_HEIGHT - 12) / 2,
-    shadowColor: theme.colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
   },
   scrollContent: {
     alignItems: "center",
@@ -364,6 +379,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     zIndex: 2,
+    overflow: "hidden",
   },
   tabContent: {
     flexDirection: "row",
@@ -380,6 +396,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
 });
+
+export { ScrollableTabBar };
 
 export default function TabLayout() {
   return (
